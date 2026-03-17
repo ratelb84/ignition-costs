@@ -2683,6 +2683,13 @@
             var body = document.getElementById('licenceAllocBody');
             var payroll = data.payrollData || [];
             
+            console.log('Rendering licence allocation. Payroll records:', payroll.length, 'Data:', data);
+            
+            if (!payroll || payroll.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">No payroll data loaded. Please check the month selector.</td></tr>';
+                return;
+            }
+            
             // Build org/div/role structure with employee counts
             var structure = {};
             payroll.forEach(function(emp) {
