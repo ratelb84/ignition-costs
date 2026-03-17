@@ -2690,14 +2690,7 @@
             var payroll = data.payrollData || [];
             
             console.log('=== LICENCE ALLOCATION DEBUG ===');
-            console.log('Current month:', currentMonth);
             console.log('Payroll records:', payroll.length);
-            console.log('Data object keys:', Object.keys(data));
-            
-            if (!payroll || payroll.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6"><strong>Debug Info:</strong><br>currentMonth: ' + currentMonth + '<br>payroll length: ' + payroll.length + '<br>Available months: ' + (data.availableMonths ? data.availableMonths.join(', ') : 'none') + '</td></tr>';
-                return;
-            }
             
             // Build org/div/role structure with employee counts
             var structure = {};
@@ -2711,6 +2704,8 @@
                 if (!structure[org][div][role]) structure[org][div][role] = { count: 0, key: role + '||' + org };
                 structure[org][div][role].count += 1;
             });
+            
+            console.log('Structure org count:', Object.keys(structure).length);
             
             // Fetch existing licence allocations
             var licences = {};
@@ -2730,9 +2725,6 @@
             
             var html = '';
             var licenceOptions = ['Microsoft E3', 'Microsoft F1 (2GB)', 'Microsoft F1 (50GB)'];
-            
-            console.log('Structure keys:', Object.keys(structure).length);
-            console.log('Licences loaded:', Object.keys(licences).length);
             
             Object.keys(structure).sort().forEach(function(org) {
                 var orgCount = 0;
@@ -2788,8 +2780,14 @@
                 });
             });
             
-            console.log('Generated HTML length:', html.length, 'Structure orgs:', Object.keys(structure).length);
-            body.innerHTML = html || '<tr><td colspan="5" class="text-center text-gray-400 py-6">No roles found</td></tr>';
+            console.log('HTML length:', html.length, 'Org count:', Object.keys(structure).length);
+            
+            // Test: output simple HTML first
+            if (html.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#dc2626;"><strong>ERROR: No HTML generated. Structure orgs: ' + Object.keys(structure).length + '</strong></td></tr>';
+            } else {
+                body.innerHTML = html;
+            }
         }
         
         async function saveLicenceAllocation(selectElem) {
