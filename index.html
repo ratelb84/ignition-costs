@@ -2197,9 +2197,17 @@
                 
                 // Org unit row (clickable to expand)
                 var pbKey = 'pb:' + org;
+                // Count employees in org unit
+                var orgEmpCount = 0;
+                Object.keys(employeesByRole).forEach(function(roleKey) {
+                    if (roleKey.indexOf('||' + org) === roleKey.length - org.length - 2) {
+                        orgEmpCount += employeesByRole[roleKey].length;
+                    }
+                });
+                
                 var isOpen = pbExpanded[pbKey];
                 html += '<tr onclick="pbToggle(\'' + pbKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:' + (isOpen ? '#f0fdf4' : '#fff') + ';" onmouseover="this.style.background=\'#f9fafb\'" onmouseout="this.style.background=\'' + (isOpen ? '#f0fdf4' : '#fff') + '\'">' +
-                    '<td class="font-semibold"><span style="margin-right:8px;">' + (isOpen ? '▼' : '▶') + '</span>' + esc(org) + '</td>' +
+                    '<td class="font-semibold"><span style="margin-right:8px;">' + (isOpen ? '▼' : '▶') + '</span>' + esc(org) + ' <span style="color:#9ca3af;font-size:0.875rem;">(' + orgEmpCount + ' emp' + (orgEmpCount !== 1 ? 's' : '') + ')</span></td>' +
                     '<td class="text-right">R ' + Math.round(orgCosts.localCC).toLocaleString('en-ZA') + '</td>' +
                     '<td class="text-right">R ' + Math.round(orgCosts.intCC).toLocaleString('en-ZA') + '</td>' +
                     '<td class="text-right">R ' + Math.round(orgCosts.retail).toLocaleString('en-ZA') + '</td>' +
@@ -2244,9 +2252,15 @@
                         
                         var divTotal = divCosts.localCC + divCosts.intCC + divCosts.retail + divCosts.product + divCosts.mvnx + divCosts.gumtree;
                         
+                        // Count employees in division
+                        var divEmpCount = 0;
+                        Object.keys(divData.roles).forEach(function(role) {
+                            divEmpCount += divData.roles[role].employees.length;
+                        });
+                        
                         // Division row (clickable)
                         html += '<tr onclick="pbToggle(\'' + divKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:#fafafa;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'#fafafa\'">' +
-                            '<td style="padding-left:48px;color:#6b7280;"><span style="margin-right:8px;">' + (divOpen ? '▼' : '▶') + '</span>' + esc(div) + '</td>' +
+                            '<td style="padding-left:48px;color:#6b7280;"><span style="margin-right:8px;">' + (divOpen ? '▼' : '▶') + '</span>' + esc(div) + ' <span style="color:#d1d5db;font-size:0.75rem;">(' + divEmpCount + ' emp' + (divEmpCount !== 1 ? 's' : '') + ')</span></td>' +
                             '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.localCC).toLocaleString('en-ZA') + '</td>' +
                             '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.intCC).toLocaleString('en-ZA') + '</td>' +
                             '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.retail).toLocaleString('en-ZA') + '</td>' +
