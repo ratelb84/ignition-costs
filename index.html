@@ -1,0 +1,2646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Ignition Cost Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Poppins', 'system-ui', 'sans-serif'] } } }
+        }
+    </script>
+    <style>
+        body { background: #edeff2; }
+        .sidebar { background: #162b3c; }
+        .nav-item { color: rgba(255,255,255,0.6); transition: all 0.15s; font-size: 13px; padding: 8px 16px; border-radius: 6px; display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 1px 8px; }
+        .nav-item:hover { color: #fff; background: rgba(0,210,169,0.1); }
+        .nav-item.active { color: #00d2a9; background: rgba(0,210,169,0.12); }
+        .nav-item svg { width: 18px; height: 18px; opacity: 0.6; }
+        .nav-item.active svg { opacity: 1; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
+        .card-header { padding: 20px 24px; border-bottom: 1px solid #f0f0f0; }
+        .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 20px; }
+        .table-container { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+        table th { font-weight: 500; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; background: #fafafa; border-bottom: 1px solid #e5e7eb; }
+        table td { padding: 10px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; }
+        table tr:last-child td { border-bottom: none; }
+        table tr:hover td { background: #f9fafb; }
+        .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+        .badge-green { background: #ecfdf5; color: #059669; }
+        .badge-amber { background: #fffbeb; color: #d97706; }
+        .badge-red { background: #fef2f2; color: #dc2626; }
+        .badge-blue { background: #eff6ff; color: #2563eb; }
+        .badge-gray { background: #f3f4f6; color: #6b7280; }
+        .btn { font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s; border: none; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #162b3c; color: #fff; }
+        .btn-primary:hover { background: #1e3a50; }
+        .btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+        .btn-secondary:hover { background: #f9fafb; }
+        .input-field { background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #111827; outline: none; font-family: inherit; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .input-sm { padding: 4px 8px; font-size: 12px; width: 56px; text-align: center; }
+        .select-field { background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 12px; font-size: 13px; color: #111827; outline: none; font-family: inherit; cursor: pointer; }
+        .select-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .upload-zone { border: 2px dashed #d1d5db; border-radius: 12px; background: #fafafa; transition: all 0.2s; cursor: pointer; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .group-header { background: #f9fafb; cursor: pointer; }
+        .group-header:hover { background: #f3f4f6; }
+        .hero-metric { background: linear-gradient(135deg, #f8fafc, #f1f5f9); border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+        .cpa-metric { background: linear-gradient(135deg, #f0fdfa, #ecfdf5); border: 1px solid #99f6e4; border-radius: 12px; padding: 24px; }
+        .detail-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+        .cost-line { padding: 12px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+        .cost-line:hover { background: #f9fafb; }
+        .total-line { padding: 14px 20px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+        .cpa-line { padding: 14px 20px; background: linear-gradient(135deg, #f0fdfa, #ecfdf5); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px; }
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; }
+        .checkbox-styled { accent-color: #3b82f6; width: 16px; height: 16px; cursor: pointer; }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased text-gray-900">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <nav class="sidebar w-60 flex flex-col flex-shrink-0 min-h-screen">
+            <div class="px-4 py-4 border-b border-white/10">
+                <img src="/logo.png" alt="Ignition CX" class="h-7 w-auto" />
+                <p class="text-[10px] text-gray-500 mt-1.5 pl-0.5">Cost Management</p>
+            </div>
+            <div class="flex-1 py-4 space-y-0.5">
+                <div onclick="showPage('dashboard')" class="nav-item active" id="nav-dashboard">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                    Cost Per Agent
+                </div>
+                <div onclick="showPage('cpa-local')" class="nav-item pl-10" id="nav-cpa-local">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 21h19.5M3.75 3v18m4.5-18v18m4.5-18v18m4.5-18v18M6 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m4.5-6.75h1.5m-1.5 3h1.5m-1.5 3h1.5"/></svg>
+                    Local
+                </div>
+                <div onclick="showPage('cpa-intl')" class="nav-item pl-10" id="nav-cpa-intl">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9 9 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+                    International
+                </div>
+                <div onclick="showPage('payroll-breakdown')" class="nav-item" id="nav-payroll-breakdown">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>
+                    Payroll Breakdown
+                </div>
+                <div onclick="showPage('payroll-alloc')" class="nav-item" id="nav-payroll-alloc">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                    Payroll Allocations
+                </div>
+                <div onclick="showPage('cost-alloc')" class="nav-item" id="nav-cost-alloc">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+                    Cost Allocations
+                </div>
+
+                <!-- Data Management section -->
+                <div class="px-4 pt-5 pb-1">
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Data Management</p>
+                </div>
+                <div onclick="showPage('employee-master')" class="nav-item" id="nav-employee-master">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                    Employee Master
+                </div>
+                <div onclick="showPage('role-allocation-master')" class="nav-item" id="nav-role-allocation-master">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+                    Role Allocation Master
+                </div>
+                <div onclick="showPage('payroll-mgmt')" class="nav-item" id="nav-payroll-mgmt">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+                    Payroll Files
+                </div>
+                <div onclick="showPage('upload')" class="nav-item" id="nav-upload">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    Upload Data
+                </div>
+
+            </div>
+        </nav>
+
+        <!-- Main -->
+        <main class="flex-1 overflow-y-auto scroll-area">
+            <!-- Top bar -->
+            <div class="topbar flex items-center justify-between px-8 py-3 sticky top-0 z-10">
+                <h2 class="text-sm font-semibold text-gray-800" id="topBarLabel">Cost Per Agent</h2>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2" id="topMonthContainer">
+                        <span class="text-xs text-gray-500">Period</span>
+                        <select id="monthSelect" onchange="switchMonth()" class="select-field text-sm"></select>
+                    </div>
+                    <div class="h-5 w-px bg-gray-200"></div>
+                    <div class="flex items-center gap-2">
+                        <div class="h-7 w-7 rounded-full bg-[#162b3c] flex items-center justify-center text-white text-xs font-semibold" id="userAvatar"></div>
+                        <span class="text-xs font-medium text-gray-700" id="userName"></span>
+                        <a href="/api/logout" class="text-xs text-gray-400 hover:text-red-500 transition ml-1" title="Sign out">
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== DASHBOARD ==================== -->
+            <div id="page-dashboard" class="p-8">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Cost Per Agent</h1>
+                    <p class="text-sm text-gray-500 mt-1">Total costs divided by revenue-generating agents</p>
+                </div>
+
+                <!-- Hero -->
+                <div class="flex items-stretch gap-4 mb-6">
+                    <div class="flex-1 hero-metric text-center flex flex-col justify-center">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Total Costs</p>
+                        <p class="text-4xl font-bold text-gray-900" id="heroTotalCosts">R 0</p>
+                        <div class="mt-3 space-y-0.5 text-sm text-gray-500" id="heroBreakdown"></div>
+                    </div>
+                    <div class="flex items-center justify-center px-2">
+                        <span class="text-3xl text-gray-300 font-light">÷</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center justify-center hero-metric text-center">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Agents</p>
+                        <p class="text-4xl font-bold text-gray-900" id="heroAgentCount">0</p>
+                        <div class="text-sm text-gray-500 mt-3" id="heroAgentSplit"></div>
+                    </div>
+                    <div class="flex items-center justify-center px-2">
+                        <span class="text-3xl text-gray-300 font-light">=</span>
+                    </div>
+                    <div class="flex-1 cpa-metric text-center flex flex-col justify-center">
+                        <p class="text-xs font-medium text-teal-600 uppercase tracking-wide mb-2">Cost Per Agent</p>
+                        <p class="text-4xl font-bold text-teal-700" id="heroCPA">R 0</p>
+                        <div class="text-sm text-teal-600 mt-3" id="heroCPASplit"></div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="stat-card">
+                        <div class="text-center pb-3 border-b border-gray-100">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Payroll</p>
+                            <p class="text-2xl font-bold text-gray-900 mt-1" id="summPayroll">R 0</p>
+                            <p class="text-xs text-gray-400 mt-1" id="summPayrollSub"></p>
+                        </div>
+                        <div class="pt-3 space-y-1.5" id="summPayrollBuckets"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-center pb-3 border-b border-gray-100">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Fixed Costs</p>
+                            <p class="text-2xl font-bold text-gray-900 mt-1" id="summFixed">R 0</p>
+                            <p class="text-xs text-gray-400 mt-1" id="summFixedSub"></p>
+                        </div>
+                        <div class="pt-3 space-y-1.5" id="summFixedBuckets"></div>
+                    </div>
+                </div>
+
+                <!-- Detail Panels with CPA underneath -->
+                <div class="grid grid-cols-2 gap-4 items-start">
+                    <div>
+                        <div id="detailPanelLocal"></div>
+                        <div class="stat-card text-center flex flex-col items-center justify-center mt-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">CC Local Cost/Agent</p>
+                            <p class="text-2xl font-bold text-teal-600 mt-1" id="summLocalCPA">R 0</p>
+                            <p class="text-xs text-gray-400 mt-1" id="summLocalSub"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <div id="detailPanelIntl"></div>
+                        <div class="stat-card text-center flex flex-col items-center justify-center mt-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">CC Int'l Cost/Agent</p>
+                            <p class="text-2xl font-bold text-purple-600 mt-1" id="summIntCPA">R 0</p>
+                            <p class="text-xs text-gray-400 mt-1" id="summIntSub"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== CPA LOCAL ==================== -->
+            <div id="page-cpa-local" class="p-8 hidden">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Project</span>
+                        <select id="localProjectFilter" onchange="renderCPALocal()" class="select-field text-sm">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Campaign</span>
+                        <select id="localCampaignFilter" onchange="renderCPALocal()" class="select-field text-sm">
+                            <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-stretch gap-4 mb-6" id="localHeroCards"></div>
+                <div class="grid grid-cols-4 gap-4 mb-6" id="localSummaryCards"></div>
+                <div class="detail-panel" id="localDetailPanel"></div>
+            </div>
+
+            <!-- ==================== CPA INTERNATIONAL ==================== -->
+            <div id="page-cpa-intl" class="p-8 hidden">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Project</span>
+                        <select id="intlProjectFilter" onchange="renderCPAIntl()" class="select-field text-sm">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Campaign</span>
+                        <select id="intlCampaignFilter" onchange="renderCPAIntl()" class="select-field text-sm">
+                            <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-stretch gap-4 mb-6" id="intlHeroCards"></div>
+                <div class="grid grid-cols-4 gap-4 mb-6" id="intlSummaryCards"></div>
+                <div class="detail-panel" id="intlDetailPanel"></div>
+            </div>
+
+            <!-- ==================== UPLOAD ==================== -->
+            <!-- ==================== EMPLOYEE MASTER FILE ==================== -->
+            <div id="page-employee-master" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Employee Master File</h1>
+                        <p class="text-sm text-gray-500 mt-1">Upload and manage the master employee list — used to validate payroll imports</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportEmployeeMasterCSV()" class="btn btn-secondary text-xs">⬇ Export CSV</button>
+                        <button onclick="clearEmployeeMaster()" class="btn btn-secondary text-xs" style="color:#dc2626">✕ Clear All</button>
+                    </div>
+                </div>
+
+                <!-- Upload zones -->
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div class="card p-6">
+                        <h3 class="font-semibold text-sm text-gray-900 mb-1">Replace Master File</h3>
+                        <p class="text-xs text-gray-500 mb-4">Upload a full replacement — clears existing and imports fresh</p>
+                        <div class="upload-zone p-8 text-center" id="emZone" onclick="document.getElementById('emFile').click()">
+                            <input type="file" id="emFile" accept=".csv" class="hidden" onchange="handleEmployeeMasterUpload(event)" />
+                            <svg class="mx-auto mb-3 text-gray-400" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                            <p class="text-sm text-gray-600">Drop CSV or click to browse</p>
+                            <p class="text-xs text-gray-400 mt-2" id="emStatus">No file uploaded</p>
+                        </div>
+                        <div id="emUploadPreview" class="mt-4 hidden"></div>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="font-semibold text-sm text-gray-900 mb-1">Add People to Master</h3>
+                        <p class="text-xs text-gray-500 mb-4">Upload additional employees — only new codes are added, existing skipped</p>
+                        <div class="upload-zone p-8 text-center" id="emAddZone" onclick="document.getElementById('emAddFile').click()">
+                            <input type="file" id="emAddFile" accept=".csv" class="hidden" onchange="handleEmployeeMasterAdd(event)" />
+                            <svg class="mx-auto mb-3 text-emerald-400" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
+                            <p class="text-sm text-gray-600">Drop CSV or click to browse</p>
+                            <p class="text-xs text-gray-400 mt-2" id="emAddStatus">No file uploaded</p>
+                        </div>
+                        <div id="emAddPreview" class="mt-4 hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Summary stats -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Employees</p><p class="text-3xl font-bold text-gray-900 mt-1" id="emTotalCount">0</p></div>
+                    <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Org Units</p><p class="text-3xl font-bold text-blue-600 mt-1" id="emOrgCount">0</p></div>
+                    <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Divisions</p><p class="text-3xl font-bold text-emerald-600 mt-1" id="emDivCount">0</p></div>
+                    <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Campaigns</p><p class="text-3xl font-bold text-amber-600 mt-1" id="emCampCount">0</p></div>
+                </div>
+
+                <!-- Filters & search -->
+                <div class="card mb-6">
+                    <div class="p-4 flex items-center gap-3 flex-wrap border-b border-gray-100">
+                        <input type="text" id="emSearch" oninput="renderEmployeeMasterTable()" class="input-field text-xs" placeholder="Search name/code/title..." style="width:220px" />
+                        <select id="emFilterOrg" onchange="renderEmployeeMasterTable()" class="select-field text-xs"><option value="all">All Org Units</option></select>
+                        <select id="emFilterDiv" onchange="renderEmployeeMasterTable()" class="select-field text-xs"><option value="all">All Divisions</option></select>
+                        <select id="emFilterCamp" onchange="renderEmployeeMasterTable()" class="select-field text-xs"><option value="all">All Campaigns</option></select>
+                        <select id="emFilterLine" onchange="renderEmployeeMasterTable()" class="select-field text-xs"><option value="all">All Reporting Lines</option></select>
+                        <span class="text-xs text-gray-400 ml-auto" id="emFilterCount"></span>
+                    </div>
+                    <div class="overflow-x-auto" style="max-height:600px;overflow-y:auto">
+                        <table>
+                            <thead><tr>
+                                <th onclick="emSort('employee_code')">Code ↕</th>
+                                <th onclick="emSort('name')">Name ↕</th>
+                                <th onclick="emSort('surname')">Surname ↕</th>
+                                <th onclick="emSort('display_name')">Display Name ↕</th>
+                                <th onclick="emSort('date_engaged')">Date Engaged ↕</th>
+                                <th onclick="emSort('job_title')">Job Title ↕</th>
+                                <th onclick="emSort('org_unit')">Org Unit ↕</th>
+                                <th onclick="emSort('division')">Division ↕</th>
+                                <th onclick="emSort('project')">Project ↕</th>
+                                <th onclick="emSort('campaign')">Campaign ↕</th>
+                                <th onclick="emSort('reporting_line')">Reporting Line ↕</th>
+                            </tr></thead>
+                            <tbody id="emTableBody"><tr><td colspan="11" class="text-center text-gray-400 py-10">No data — upload a master file above</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PAYROLL FILE MANAGEMENT ==================== -->
+            <div id="page-payroll-mgmt" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Payroll File Management</h1>
+                        <p class="text-sm text-gray-500 mt-1">Upload payroll CSVs, validate against Employee Master, resolve exceptions before reporting</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Month:</span>
+                        <select id="pmMonth" class="select-field" style="font-size:14px;font-weight:600;padding:8px 14px;border:2px solid #00d2a9;">
+                            <option value="2026-03">March 2026</option><option value="2026-02">February 2026</option><option value="2026-01">January 2026</option>
+                            <option value="2025-12">December 2025</option><option value="2025-11">November 2025</option><option value="2025-10">October 2025</option>
+                            <option value="2025-09">September 2025</option><option value="2025-08">August 2025</option><option value="2025-07">July 2025</option>
+                            <option value="2025-06">June 2025</option><option value="2025-05">May 2025</option><option value="2025-04">April 2025</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Upload zone -->
+                <div class="card p-6 mb-6">
+                    <h3 class="font-semibold text-sm text-gray-900 mb-1">Upload Payroll File</h3>
+                    <p class="text-xs text-gray-500 mb-4">CSV with: Employee Code, First Name, Last Name, Role, Org Unit, Division, Project, Campaign, Monthly CTC</p>
+                    <div class="upload-zone p-8 text-center" id="pmZone" onclick="document.getElementById('pmFile').click()">
+                        <input type="file" id="pmFile" accept=".csv" class="hidden" onchange="handlePMUpload(event)" />
+                        <svg class="mx-auto mb-3 text-gray-400" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                        <p class="text-sm text-gray-600">Drop payroll CSV here or click to browse</p>
+                        <p class="text-xs text-gray-400 mt-2" id="pmStatus">No file uploaded</p>
+                    </div>
+                </div>
+
+                <!-- Validation summary -->
+                <div id="pmSummary" class="hidden mb-6">
+                    <div class="grid grid-cols-4 gap-4 mb-4">
+                        <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Payroll Rows</p><p class="text-3xl font-bold text-gray-900 mt-1" id="pmTotalRows">0</p></div>
+                        <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">✅ Matched</p><p class="text-3xl font-bold text-emerald-600 mt-1" id="pmMatched">0</p></div>
+                        <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">🔄 Auto-Corrected</p><p class="text-3xl font-bold text-blue-600 mt-1" id="pmMismatches">0</p></div>
+                        <div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">❌ Not in Master</p><p class="text-3xl font-bold text-red-600 mt-1" id="pmNotInMaster">0</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-sm font-semibold text-gray-700" id="pmValidationStatus"></span>
+                    </div>
+                </div>
+
+                <!-- Exception review -->
+                <div id="pmExceptions" class="hidden">
+                    <div class="card mb-6">
+                        <div class="card-header flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-900">Exception Review</h3>
+                                <p class="text-xs text-gray-500 mt-0.5">Review mismatches and select actions before applying</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="pmSelectAll()" class="btn btn-secondary text-xs">Select All</button>
+                                <button onclick="pmDeselectAll()" class="btn btn-secondary text-xs">Deselect All</button>
+                                <button onclick="pmApplySelected()" class="btn btn-primary text-xs" id="pmApplyBtn">Add Selected to Master (0)</button>
+                            </div>
+                        </div>
+
+                        <!-- Not in Master section -->
+                        <div id="pmNotInMasterSection" class="hidden">
+                            <div class="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center gap-2">
+                                <span class="text-sm font-semibold text-red-700">❌ Not in Employee Master</span>
+                                <span class="text-xs text-red-500" id="pmNotInMasterCount"></span>
+                            </div>
+                            <div class="overflow-x-auto" style="max-height:300px;overflow-y:auto">
+                                <table>
+                                    <thead><tr><th class="w-8"><input type="checkbox" class="checkbox-styled" onchange="pmToggleGroup('notinmaster', this.checked)" /></th><th>Code</th><th>First Name</th><th>Last Name</th><th>Role</th><th>Org Unit</th><th>Division</th><th>Project</th><th>Campaign</th><th>Action</th></tr></thead>
+                                    <tbody id="pmNotInMasterBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Field Mismatches section -->
+                        <div id="pmMismatchSection" class="hidden">
+                            <div class="px-5 py-3 bg-blue-50 border-b border-blue-100 border-t border-blue-100 flex items-center gap-2">
+                                <span class="text-sm font-semibold text-blue-700">🔄 Auto-Corrected from Master</span>
+                                <span class="text-xs text-blue-500" id="pmMismatchCount"></span>
+                            </div>
+                            <div class="overflow-x-auto" style="max-height:500px;overflow-y:auto">
+                                <table>
+                                    <thead><tr><th class="w-8"></th><th>Employee</th><th>Field</th><th>Was (Payroll)</th><th>Now (Master)</th><th>Status</th></tr></thead>
+                                    <tbody id="pmMismatchBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- No exceptions -->
+                        <div id="pmNoExceptions" class="hidden p-10 text-center">
+                            <p class="text-lg font-semibold text-emerald-600">✅ All payroll rows match the Employee Master</p>
+                            <p class="text-sm text-gray-500 mt-1">This payroll file is validated and ready for reporting.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Imported Payroll Files List -->
+                <div class="card mt-6">
+                    <div class="card-header">
+                        <h3 class="text-sm font-semibold text-gray-900">Imported Payroll Files</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Only "Live" files are used in cost reports above</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead><tr><th>Month</th><th>Employees</th><th>Total CTC</th><th>Uploaded</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody id="pmFilesBody"><tr><td colspan="6" class="text-center text-gray-400 py-6">Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-upload" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Upload Data</h1>
+                        <p class="text-sm text-gray-500 mt-1">Select the month and upload payroll and cost CSV files</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Upload for:</span>
+                        <select id="uploadMonth" class="select-field" style="font-size:16px;font-weight:700;padding:10px 16px;border:2px solid #00d2a9;">
+                            <option value="2026-03">March 2026</option>
+                            <option value="2026-02">February 2026</option>
+                            <option value="2026-01">January 2026</option>
+                            <option value="2025-12">December 2025</option>
+                            <option value="2025-11">November 2025</option>
+                            <option value="2025-10">October 2025</option>
+                            <option value="2025-09">September 2025</option>
+                            <option value="2025-08">August 2025</option>
+                            <option value="2025-07">July 2025</option>
+                            <option value="2025-06">June 2025</option>
+                            <option value="2025-05">May 2025</option>
+                            <option value="2025-04">April 2025</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="card p-6">
+                        <h3 class="font-semibold text-sm text-gray-900 mb-1">Payroll File</h3>
+                        <p class="text-xs text-gray-500 mb-4">CSV with: Employee, Role, Org Unit, Division, Project, Campaign, Gross Cost</p>
+                        <div class="upload-zone p-10 text-center" id="payrollZone" onclick="document.getElementById('payrollFile').click()">
+                            <input type="file" id="payrollFile" accept=".csv" class="hidden" onchange="handlePayrollUpload(event)" />
+                            <svg class="mx-auto mb-3 text-gray-400" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                            <p class="text-sm text-gray-600">Drop CSV here or click to browse</p>
+                            <p class="text-xs text-gray-400 mt-2" id="payrollStatus">No file uploaded</p>
+                        </div>
+                        <div id="payrollPreview" class="mt-4 hidden"></div>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="font-semibold text-sm text-gray-900 mb-1">Cost File</h3>
+                        <p class="text-xs text-gray-500 mb-4">CSV with: Category, Vendor, Description, Amount</p>
+                        <div class="upload-zone p-10 text-center" id="costZone" onclick="document.getElementById('costFile').click()">
+                            <input type="file" id="costFile" accept=".csv" class="hidden" onchange="handleCostUpload(event)" />
+                            <svg class="mx-auto mb-3 text-gray-400" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                            <p class="text-sm text-gray-600">Drop CSV here or click to browse</p>
+                            <p class="text-xs text-gray-400 mt-2" id="costStatus">No file uploaded</p>
+                        </div>
+                        <div id="costPreview" class="mt-4 hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PAYROLL ALLOCATIONS ==================== -->
+            <!-- ==================== PAYROLL BREAKDOWN ==================== -->
+            <div id="page-payroll-breakdown" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Payroll Breakdown by Org Unit</h1>
+                        <p class="text-sm text-gray-500 mt-1">Actual cost allocation matrix by Org Unit and Cost Center</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Month:</span>
+                        <select id="pbMonthSelect" onchange="renderPayrollBreakdown()" class="select-field text-xs"></select>
+                        <button onclick="refreshPayrollBreakdown()" class="btn btn-secondary text-xs" title="Reload data from database">⟳ Refresh</button>
+                    </div>
+                </div>
+
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Org Unit</th>
+                                <th class="text-right">Local CC</th>
+                                <th class="text-right">Int'l CC</th>
+                                <th class="text-right">Retail</th>
+                                <th class="text-right">Product</th>
+                                <th class="text-right">MVNX</th>
+                                <th class="text-right">Gumtree</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pbBreakdownBody"><tr><td colspan="8" class="text-center text-gray-400 py-8">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="page-payroll-alloc" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Payroll Allocations</h1>
+                        <p class="text-sm text-gray-500 mt-1">Set revenue-generating flag and % split per role to cost buckets</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="orgUnitFilter" onchange="renderPayrollAllocations()" class="select-field text-xs">
+                            <option value="">All Org Units</option>
+                        </select>
+                        <select id="divisionFilter" onchange="renderPayrollAllocations()" class="select-field text-xs">
+                            <option value="">All Divisions</option>
+                        </select>
+                        <button onclick="refreshPayrollAllocations()" class="btn btn-secondary text-xs" title="Reload data from database">⟳ Refresh</button>
+                        <button onclick="addPayrollAllocation()" class="btn btn-primary">+ Add Role</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4 mb-5" id="allocSummaryCards"></div>
+
+                <div class="table-container">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Role / Job Title</th>
+                                <th class="text-left">Org Unit</th>
+                                <th class="text-left">Division</th>
+                                <th class="text-center">Count</th>
+                                <th class="text-center">Rev Gen</th>
+                                <th class="text-center">Local CC</th>
+                                <th class="text-center">Int CC</th>
+                                <th class="text-center">Retail</th>
+                                <th class="text-center">Product</th>
+                                <th class="text-center">MVNX</th>
+                                <th class="text-center">Gumtree</th>
+                                <th class="text-center">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="payrollAllocBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ==================== COST ALLOCATIONS ==================== -->
+            <div id="page-cost-alloc" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Cost Allocations</h1>
+                        <p class="text-sm text-gray-500 mt-1">Set % split per vendor to cost buckets. Rolls up to category totals.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="costCatFilter" onchange="renderCostAllocations()" class="select-field text-xs">
+                            <option value="">All Categories</option>
+                        </select>
+                        <button onclick="toggleAllCostDetails()" class="btn btn-secondary" id="toggleCostBtn">Expand All</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4 mb-5" id="costAllocSummary"></div>
+
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Vendor / Description</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-center">Local CC</th>
+                                <th class="text-center">Int CC</th>
+                                <th class="text-center">Retail</th>
+                                <th class="text-center">Product</th>
+                                <th class="text-center">MVNX</th>
+                                <th class="text-center">Gumtree</th>
+                                <th class="text-center">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="costAllocBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ==================== VIEW DATA ==================== -->
+            <div id="page-data" class="p-8 hidden">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900">View Uploaded Data</h1>
+                    <p class="text-sm text-gray-500 mt-1">Review payroll and cost data for the selected month</p>
+                </div>
+                <div class="mb-4 flex gap-2">
+                    <button onclick="showDataTab('payroll')" class="btn btn-primary" id="tab-payroll">Payroll Data</button>
+                    <button onclick="showDataTab('costs')" class="btn btn-secondary" id="tab-costs">Cost Data</button>
+                </div>
+                <div class="table-container overflow-auto" style="max-height:calc(100vh - 240px)">
+                    <div id="dataTable"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ========== SUPABASE ==========
+        var SUPABASE_URL = 'https://hqfszlxdkvwlvpwqqmbd.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxZnN6bHhka3Z3bHZwd3FxbWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NTExODgsImV4cCI6MjA4ODEyNzE4OH0.4OlPny5uJFTslf6iWfF7fAaVl0x2I_VG63QPa1Amq8Q';
+        var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ========== CONSTANTS ==========
+        var BUCKETS = ['local_cc', 'int_cc', 'retail', 'product', 'mvnx', 'gumtree'];
+        var BUCKET_LABELS = { local_cc: 'Local CC', int_cc: 'International CC', retail: 'Retail', product: 'Product', mvnx: 'MVNX', gumtree: 'Gumtree' };
+        var CC_ORGS = ['contact centre international', 'contact centre local', 'contact center international', 'contact center local',
+            'contact centre \u2013 international', 'contact centre \u2013 local', 'contact center \u2013 international', 'contact center \u2013 local'];
+
+        var currentMonth = new Date().toISOString().slice(0, 7);
+        var data = { payrollAllocations: [], costAllocations: [], payrollData: [], costData: [], employeeMaster: [] };
+
+        // ========== SUPABASE DATA LAYER ==========
+        async function fetchAll(table, filters) {
+            var all = [];
+            var page = 0;
+            var pageSize = 1000;
+            while (true) {
+                var q = db.from(table).select('*').range(page * pageSize, (page + 1) * pageSize - 1).order('id');
+                if (filters) {
+                    Object.keys(filters).forEach(function(k) { q = q.eq(k, filters[k]); });
+                }
+                var res = await q;
+                if (res.error) { console.error('Fetch error:', res.error); break; }
+                all = all.concat(res.data || []);
+                if (!res.data || res.data.length < pageSize) break;
+                page++;
+            }
+            return all;
+        }
+
+        async function loadAllData() {
+            try {
+                data.payrollAllocations = await fetchAll('payroll_allocations');
+                data.costAllocations = await fetchAll('cost_allocations');
+                data.employeeMaster = await fetchAll('employee_master');
+                data.payrollData = await fetchAll('payroll_data', { month: currentMonth });
+                data.costData = await fetchAll('cost_data', { month: currentMonth });
+                var months = await db.from('payroll_data').select('month').order('month', { ascending: false });
+                var costMonths = await db.from('cost_data').select('month').order('month', { ascending: false });
+                var allMonths = {};
+                (months.data || []).forEach(function(r) { allMonths[r.month] = true; });
+                (costMonths.data || []).forEach(function(r) { allMonths[r.month] = true; });
+                data.availableMonths = Object.keys(allMonths).sort().reverse();
+                if (data.payrollData.length === 0 && data.costData.length === 0 && data.availableMonths.length > 0) {
+                    var latestMonth = data.availableMonths[0];
+                    currentMonth = latestMonth;
+                    data.payrollData = await fetchAll('payroll_data', { month: currentMonth });
+                    data.costData = await fetchAll('cost_data', { month: currentMonth });
+                }
+                data.allPayrollData = data.payrollData;
+                updateMonthSelect();
+            } catch(e) { console.error('Load error:', e); }
+        }
+
+        function updateMonthSelect() {
+            var sel = document.getElementById('monthSelect');
+            var now = new Date();
+            var months = {};
+            for (var i = 0; i < 12; i++) {
+                var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months[d.toISOString().slice(0, 7)] = true;
+            }
+            (data.availableMonths || []).forEach(function(m) { months[m] = true; });
+            var sorted = Object.keys(months).sort().reverse();
+            sel.innerHTML = sorted.map(function(m) {
+                var d = new Date(m + '-01');
+                var label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                var hasData = (data.availableMonths || []).indexOf(m) >= 0;
+                return '<option value="' + m + '"' + (m === currentMonth ? ' selected' : '') + '>' +
+                    label + (hasData ? ' ●' : '') + '</option>';
+            }).join('');
+        }
+
+        // ========== FORMAT ==========
+        function fmtR(n) { return 'R ' + Math.round(n).toLocaleString('en-ZA'); }
+
+        // ========== NAVIGATION ==========
+        var PAGE_LABELS = { 'dashboard': 'Cost Per Agent', 'cpa-local': 'Cost Per Agent — Local', 'cpa-intl': 'Cost Per Agent — International', 'employee-master': 'Employee Master File', 'payroll-mgmt': 'Payroll File Management', 'upload': 'Upload Data', 'payroll-breakdown': 'Payroll Breakdown', 'payroll-alloc': 'Payroll Allocations', 'cost-alloc': 'Cost Allocations', 'data': 'View Data' };
+        function showPage(page) {
+            ['dashboard', 'cpa-local', 'cpa-intl', 'employee-master', 'payroll-mgmt', 'upload', 'payroll-breakdown', 'payroll-alloc', 'cost-alloc', 'data'].forEach(function(p) {
+                document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
+                var nav = document.getElementById('nav-' + p);
+                if (nav) nav.classList.toggle('active', p === page);
+            });
+            document.getElementById('topBarLabel').textContent = PAGE_LABELS[page] || page;
+            // Hide top month selector on non-relevant pages
+            document.getElementById('topMonthContainer').style.display = (page === 'upload' || page === 'employee-master' || page === 'payroll-mgmt') ? 'none' : 'flex';
+            if (page === 'dashboard') renderDashboard();
+            if (page === 'cpa-local') renderCPALocal();
+            if (page === 'cpa-intl') renderCPAIntl();
+            if (page === 'employee-master') loadAndRenderEmployeeMaster();
+            if (page === 'payroll-mgmt') loadPayrollFilesList();
+            if (page === 'payroll-breakdown') { loadAllData().then(function() { renderPayrollBreakdown(); }); }
+            if (page === 'payroll-alloc') { loadAllData().then(function() { renderPayrollAllocations(); }); }
+            if (page === 'cost-alloc') renderCostAllocations();
+            if (page === 'data') showDataTab('payroll');
+        }
+
+        function initMonthSelect() { updateMonthSelect(); }
+        // Upload month selector is hardcoded in HTML - never rebuilt by JS
+        async function switchMonth() { currentMonth = document.getElementById('monthSelect').value; await loadAllData(); showPage(getCurrentPage()); }
+        function getCurrentPage() {
+            var pages = ['dashboard', 'employee-master', 'payroll-mgmt', 'upload', 'payroll-alloc', 'cost-alloc', 'data'];
+            for (var i = 0; i < pages.length; i++) if (!document.getElementById('page-' + pages[i]).classList.contains('hidden')) return pages[i];
+            return 'dashboard';
+        }
+
+        // ========== EMPLOYEE MASTER ==========
+        var employeeMaster = [];
+        var emSortCol = 'employee_code';
+        var emSortDir = 1;
+
+        var EM_FIELD_MAP = {
+            'employee_code': ['employee code','emp code','empcode','employee_code','code','employee number','emp number','emp no','employee no','empno','emp_code','emp_no','staff code','staff no','staff number','payroll number','payroll no','id number','employee id','emp id','empid','personnel number','personnel no','pers no'],
+            'name': ['name','first name','firstname','first_name','names','given name','forename','initials and name'],
+            'surname': ['surname','last name','lastname','last_name','family name','family_name'],
+            'display_name': ['display name','display_name','displayname','full name','fullname','full_name','employee name','emp name'],
+            'date_engaged': ['date engaged','date_engaged','engaged','engagement date','start date','hire date','hired','date hired','date_hired','commencement','commencement date','date of engagement','employment date','joined','date joined','service start'],
+            'job_title': ['job title','job_title','jobtitle','title','position','role','designation','job description','job desc','occupation'],
+            'org_unit': ['org unit','org_unit','orgunit','organisational unit','organizational unit','department','org','business unit','bu','cost centre','cost center','cc'],
+            'division': ['division','div','sub department','subdepartment','section','diviuson','divison','divsion'],
+            'project': ['project','proj','project code','project name'],
+            'campaign': ['campaign','camp','campaign name','campaign code','campign','campagin','campain'],
+            'reporting_line': ['reporting line','reporting_line','reportingline','reports to','manager','supervisor','line manager','report to','reports_to','direct manager','manager name']
+        };
+
+        function emNorm(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+        function emMapField(header) {
+            var h = header.toLowerCase().trim();
+            var hn = emNorm(header);
+            for (var field in EM_FIELD_MAP) {
+                for (var i = 0; i < EM_FIELD_MAP[field].length; i++) {
+                    // Exact match
+                    if (h === EM_FIELD_MAP[field][i]) return field;
+                    // Normalised match (strip spaces/underscores/special)
+                    if (hn === emNorm(EM_FIELD_MAP[field][i])) return field;
+                }
+                // Also match the DB field name itself normalised
+                if (hn === emNorm(field)) return field;
+            }
+            return null;
+        }
+
+        async function loadAndRenderEmployeeMaster() {
+            try {
+                // Supabase REST defaults to 1000 rows — paginate to get all
+                employeeMaster = [];
+                var pageSize = 1000;
+                var offset = 0;
+                while (true) {
+                    var res = await fetch(SUPABASE_URL + '/rest/v1/employee_master?select=*&order=employee_code.asc&limit=' + pageSize + '&offset=' + offset, {
+                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+                    });
+                    var batch = await res.json();
+                    if (!Array.isArray(batch) || batch.length === 0) break;
+                    employeeMaster = employeeMaster.concat(batch);
+                    if (batch.length < pageSize) break;
+                    offset += pageSize;
+                }
+            } catch(e) { console.error(e); employeeMaster = []; }
+            updateEMFilters();
+            renderEmployeeMasterTable();
+        }
+
+        function updateEMFilters() {
+            var orgs = [...new Set(employeeMaster.map(e => e.org_unit).filter(Boolean))].sort();
+            var divs = [...new Set(employeeMaster.map(e => e.division).filter(Boolean))].sort();
+            var camps = [...new Set(employeeMaster.map(e => e.campaign).filter(Boolean))].sort();
+            var lines = [...new Set(employeeMaster.map(e => e.reporting_line).filter(Boolean))].sort();
+
+            populateSelect('emFilterOrg', orgs, 'All Org Units');
+            populateSelect('emFilterDiv', divs, 'All Divisions');
+            populateSelect('emFilterCamp', camps, 'All Campaigns');
+            populateSelect('emFilterLine', lines, 'All Reporting Lines');
+
+            document.getElementById('emTotalCount').textContent = employeeMaster.length;
+            document.getElementById('emOrgCount').textContent = orgs.length;
+            document.getElementById('emDivCount').textContent = divs.length;
+            document.getElementById('emCampCount').textContent = camps.length;
+        }
+
+        function populateSelect(id, values, allLabel) {
+            var sel = document.getElementById(id);
+            var prev = sel.value;
+            sel.innerHTML = '<option value="all">' + allLabel + '</option>';
+            values.forEach(function(v) { sel.innerHTML += '<option value="' + v + '">' + v + '</option>'; });
+            if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+        }
+
+        function getFilteredEM() {
+            var search = (document.getElementById('emSearch').value || '').toLowerCase();
+            var org = document.getElementById('emFilterOrg').value;
+            var div = document.getElementById('emFilterDiv').value;
+            var camp = document.getElementById('emFilterCamp').value;
+            var line = document.getElementById('emFilterLine').value;
+
+            return employeeMaster.filter(function(e) {
+                if (org !== 'all' && e.org_unit !== org) return false;
+                if (div !== 'all' && e.division !== div) return false;
+                if (camp !== 'all' && e.campaign !== camp) return false;
+                if (line !== 'all' && e.reporting_line !== line) return false;
+                if (search) {
+                    var hay = [e.employee_code, e.name, e.surname, e.display_name, e.job_title].join(' ').toLowerCase();
+                    if (hay.indexOf(search) === -1) return false;
+                }
+                return true;
+            });
+        }
+
+        function emSort(col) {
+            if (emSortCol === col) emSortDir = -emSortDir;
+            else { emSortCol = col; emSortDir = 1; }
+            renderEmployeeMasterTable();
+        }
+
+        function renderEmployeeMasterTable() {
+            var data = getFilteredEM();
+            data.sort(function(a, b) {
+                var va = (a[emSortCol] || '').toString().toLowerCase();
+                var vb = (b[emSortCol] || '').toString().toLowerCase();
+                return va < vb ? -emSortDir : va > vb ? emSortDir : 0;
+            });
+
+            document.getElementById('emFilterCount').textContent = data.length + ' of ' + employeeMaster.length + ' employees';
+
+            // Collect unique values for dropdowns
+            var allOrgs = [...new Set(employeeMaster.map(e => e.org_unit).filter(Boolean))].sort();
+            var allDivs = [...new Set(employeeMaster.map(e => e.division).filter(Boolean))].sort();
+            var allProjects = [...new Set(employeeMaster.map(e => e.project).filter(Boolean))].sort();
+            var allCampaigns = [...new Set(employeeMaster.map(e => e.campaign).filter(Boolean))].sort();
+
+            var body = document.getElementById('emTableBody');
+            if (!data.length) {
+                body.innerHTML = '<tr><td colspan="11" class="text-center text-gray-400 py-10">No matching employees</td></tr>';
+                return;
+            }
+            body.innerHTML = data.map(function(e) {
+                var orgOptions = '<option value="">' + (e.org_unit || '') + '</option>' + allOrgs.map(function(o) { return '<option value="' + o + '"' + (e.org_unit === o ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+                var divOptions = '<option value="">' + (e.division || '') + '</option>' + allDivs.map(function(d) { return '<option value="' + d + '"' + (e.division === d ? ' selected' : '') + '>' + d + '</option>'; }).join('');
+                var projOptions = '<option value="">' + (e.project || '') + '</option>' + allProjects.map(function(p) { return '<option value="' + p + '"' + (e.project === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
+                var campOptions = '<option value="">' + (e.campaign || '') + '</option>' + allCampaigns.map(function(c) { return '<option value="' + c + '"' + (e.campaign === c ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+                
+                return '<tr>'
+                    + '<td class="font-mono text-xs">' + (e.employee_code || '') + '</td>'
+                    + '<td>' + (e.name || '') + '</td>'
+                    + '<td>' + (e.surname || '') + '</td>'
+                    + '<td>' + (e.display_name || '') + '</td>'
+                    + '<td class="text-xs">' + (e.date_engaged ? new Date(e.date_engaged).toLocaleDateString('en-ZA') : '') + '</td>'
+                    + '<td>' + (e.job_title || '') + '</td>'
+                    + '<td><select class="input-field input-sm" onchange="updateEMField(' + e.id + ', \'org_unit\', this.value)">' + orgOptions + '</select></td>'
+                    + '<td><select class="input-field input-sm" onchange="updateEMField(' + e.id + ', \'division\', this.value)">' + divOptions + '</select></td>'
+                    + '<td><select class="input-field input-sm" onchange="updateEMField(' + e.id + ', \'project\', this.value)">' + projOptions + '</select></td>'
+                    + '<td><select class="input-field input-sm" onchange="updateEMField(' + e.id + ', \'campaign\', this.value)">' + campOptions + '</select></td>'
+                    + '<td>' + (e.reporting_line || '') + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+        
+        window.updateEMField = async function(id, field, value) {
+            try {
+                var res = await fetch(SUPABASE_URL + '/rest/v1/employee_master?id=eq.' + id, {
+                    method: 'PATCH',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [field]: value || null })
+                });
+                if (res.ok) {
+                    // Update local copy
+                    var emp = employeeMaster.find(function(e) { return e.id === id; });
+                    if (emp) emp[field] = value || null;
+                    renderEmployeeMasterTable();
+                } else {
+                    alert('Error updating employee: ' + res.status);
+                }
+            } catch(e) { console.error('Update error:', e); alert('Failed to update: ' + e.message); }
+        };
+
+        function handleEmployeeMasterUpload(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('emStatus').textContent = 'Parsing ' + file.name + '...';
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    var rows = results.data;
+                    if (!rows.length) {
+                        document.getElementById('emStatus').textContent = 'File empty.';
+                        return;
+                    }
+
+                    // Map CSV headers to our fields
+                    var csvHeaders = Object.keys(rows[0]);
+                    var mapping = {};
+                    csvHeaders.forEach(function(h) {
+                        var field = emMapField(h);
+                        if (field) mapping[h] = field;
+                    });
+
+                    // Show preview of mapping
+                    var mapped = Object.keys(mapping).length;
+                    var unmapped = csvHeaders.filter(function(h) { return !mapping[h]; });
+                    var blankCodes = rows.filter(function(r) { var codeCol = Object.keys(mapping).find(function(k){return mapping[k]==='employee_code';}); return !codeCol || !(r[codeCol]||'').toString().trim(); }).length;
+                    var preview = '<div class="text-xs mb-3"><span class="font-semibold text-gray-700">' + rows.length + ' rows</span> · <span class="text-green-600">' + mapped + ' columns matched</span>';
+                    if (unmapped.length) preview += ' · <span class="text-amber-600">' + unmapped.length + ' unmapped: ' + unmapped.join(', ') + '</span>';
+                    if (blankCodes) preview += ' · <span class="text-blue-600">' + blankCodes + ' blank employee codes (auto-generated)</span>';
+                    preview += '</div>';
+                    // Show mapping detail
+                    preview += '<div class="text-xs text-gray-500 mb-3 space-y-0.5">';
+                    for (var csvH in mapping) preview += '<div>📎 "<b>' + csvH + '</b>" → <span class="text-green-700">' + mapping[csvH] + '</span></div>';
+                    if (unmapped.length) unmapped.forEach(function(u) { preview += '<div>⚠️ "<b>' + u + '</b>" → <span class="text-amber-600">skipped</span></div>'; });
+                    preview += '</div>';
+                    preview += '<div class="flex items-center gap-3"><button onclick="commitEmployeeMasterUpload()" class="btn btn-primary text-xs">✓ Import ' + rows.length + ' employees</button><button onclick="cancelEMUpload()" class="btn btn-secondary text-xs">Cancel</button></div>';
+
+                    document.getElementById('emUploadPreview').innerHTML = preview;
+                    document.getElementById('emUploadPreview').classList.remove('hidden');
+                    document.getElementById('emStatus').textContent = file.name + ' parsed.';
+
+                    // Stash for commit
+                    window._emPendingRows = rows;
+                    window._emPendingMapping = mapping;
+                }
+            });
+        }
+
+        function cancelEMUpload() {
+            document.getElementById('emUploadPreview').classList.add('hidden');
+            document.getElementById('emFile').value = '';
+            document.getElementById('emStatus').textContent = 'Upload cancelled.';
+            window._emPendingRows = null;
+            window._emPendingMapping = null;
+        }
+
+        async function commitEmployeeMasterUpload() {
+            var rows = window._emPendingRows;
+            var mapping = window._emPendingMapping;
+            if (!rows || !mapping) return;
+
+            document.getElementById('emStatus').textContent = 'Uploading to database...';
+
+            // Transform rows
+            var records = rows.map(function(row) {
+                var rec = {};
+                for (var csvCol in mapping) {
+                    var dbCol = mapping[csvCol];
+                    var val = (row[csvCol] || '').toString().trim();
+                    if (dbCol === 'date_engaged' && val) {
+                        // Try parse various date formats
+                        var d = new Date(val);
+                        if (!isNaN(d)) val = d.toISOString().split('T')[0];
+                        else val = null;
+                    }
+                    rec[dbCol] = val || null;
+                }
+                return rec;
+            });
+            // Assign row index as employee_code for rows missing one
+            records.forEach(function(r, i) {
+                if (!r.employee_code) r.employee_code = 'ROW_' + (i + 1);
+            });
+
+            if (!records.length) {
+                document.getElementById('emStatus').textContent = 'No rows with employee code found.';
+                return;
+            }
+
+            // Upsert in batches of 200
+            var batch = 200;
+            var errors = 0;
+            for (var i = 0; i < records.length; i += batch) {
+                var chunk = records.slice(i, i + batch);
+                try {
+                    var res = await fetch(SUPABASE_URL + '/rest/v1/employee_master', {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': 'Bearer ' + SUPABASE_KEY,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify(chunk)
+                    });
+                    if (!res.ok) { errors++; console.error('Batch error', await res.text()); }
+                } catch(e) { errors++; console.error(e); }
+                document.getElementById('emStatus').textContent = 'Uploading... ' + Math.min(i + batch, records.length) + '/' + records.length;
+            }
+
+            document.getElementById('emUploadPreview').classList.add('hidden');
+            document.getElementById('emFile').value = '';
+            window._emPendingRows = null;
+            window._emPendingMapping = null;
+
+            if (errors) {
+                document.getElementById('emStatus').textContent = records.length + ' processed with ' + errors + ' batch error(s).';
+            } else {
+                document.getElementById('emStatus').textContent = '✓ ' + records.length + ' employees imported successfully.';
+            }
+
+            await loadAndRenderEmployeeMaster();
+        }
+
+        function handleEmployeeMasterAdd(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('emAddStatus').textContent = 'Parsing ' + file.name + '...';
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    var rows = results.data;
+                    if (!rows.length) {
+                        document.getElementById('emAddStatus').textContent = 'File empty.';
+                        return;
+                    }
+
+                    var csvHeaders = Object.keys(rows[0]);
+                    var mapping = {};
+                    csvHeaders.forEach(function(h) {
+                        var field = emMapField(h);
+                        if (field) mapping[h] = field;
+                    });
+
+                    var mapped = Object.keys(mapping).length;
+                    var unmapped = csvHeaders.filter(function(h) { return !mapping[h]; });
+
+                    // Check how many are new vs existing
+                    var existingCodes = new Set(employeeMaster.map(function(e) { return (e.employee_code || '').toString().trim().toLowerCase(); }));
+                    var codeCol = Object.keys(mapping).find(function(k) { return mapping[k] === 'employee_code'; });
+                    var newCount = 0;
+                    var skipCount = 0;
+                    rows.forEach(function(row) {
+                        var code = codeCol ? (row[codeCol] || '').toString().trim().toLowerCase() : '';
+                        if (code && existingCodes.has(code)) skipCount++;
+                        else newCount++;
+                    });
+
+                    var preview = '<div class="text-xs mb-3"><span class="font-semibold text-gray-700">' + rows.length + ' rows</span> · <span class="text-green-600">' + newCount + ' new</span> · <span class="text-gray-500">' + skipCount + ' already exist (will skip)</span></div>';
+                    preview += '<div class="flex items-center gap-3"><button onclick="commitEmployeeMasterAdd()" class="btn btn-primary text-xs">✓ Add ' + newCount + ' new employees</button><button onclick="cancelEMAdd()" class="btn btn-secondary text-xs">Cancel</button></div>';
+
+                    document.getElementById('emAddPreview').innerHTML = preview;
+                    document.getElementById('emAddPreview').classList.remove('hidden');
+                    document.getElementById('emAddStatus').textContent = file.name + ' parsed.';
+
+                    window._emAddPendingRows = rows;
+                    window._emAddPendingMapping = mapping;
+                }
+            });
+        }
+
+        function cancelEMAdd() {
+            document.getElementById('emAddPreview').classList.add('hidden');
+            document.getElementById('emAddFile').value = '';
+            document.getElementById('emAddStatus').textContent = 'Cancelled.';
+            window._emAddPendingRows = null;
+            window._emAddPendingMapping = null;
+        }
+
+        async function commitEmployeeMasterAdd() {
+            var rows = window._emAddPendingRows;
+            var mapping = window._emAddPendingMapping;
+            if (!rows || !mapping) return;
+
+            document.getElementById('emAddStatus').textContent = 'Adding new employees...';
+
+            var existingCodes = new Set(employeeMaster.map(function(e) { return (e.employee_code || '').toString().trim().toLowerCase(); }));
+
+            var records = rows.map(function(row) {
+                var rec = {};
+                for (var csvCol in mapping) {
+                    var dbCol = mapping[csvCol];
+                    var val = (row[csvCol] || '').toString().trim();
+                    if (dbCol === 'date_engaged' && val) {
+                        var d = new Date(val);
+                        if (!isNaN(d)) val = d.toISOString().split('T')[0];
+                        else val = null;
+                    }
+                    rec[dbCol] = val || null;
+                }
+                return rec;
+            });
+
+            // Only insert new codes
+            var newRecords = records.filter(function(r) {
+                var code = (r.employee_code || '').toString().trim().toLowerCase();
+                return code && !existingCodes.has(code);
+            });
+
+            // Also include rows without codes (assign ROW_ADD_N)
+            var noCodeRecords = records.filter(function(r) { return !r.employee_code; });
+            noCodeRecords.forEach(function(r, i) { r.employee_code = 'ADD_' + Date.now() + '_' + i; });
+            newRecords = newRecords.concat(noCodeRecords);
+
+            if (!newRecords.length) {
+                document.getElementById('emAddStatus').textContent = 'No new employees to add — all already exist.';
+                document.getElementById('emAddPreview').classList.add('hidden');
+                return;
+            }
+
+            var errors = 0;
+            for (var i = 0; i < newRecords.length; i += 200) {
+                try {
+                    var res = await fetch(SUPABASE_URL + '/rest/v1/employee_master', {
+                        method: 'POST',
+                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                        body: JSON.stringify(newRecords.slice(i, i + 200))
+                    });
+                    if (!res.ok) { errors++; console.error(await res.text()); }
+                } catch(e) { errors++; }
+            }
+
+            document.getElementById('emAddPreview').classList.add('hidden');
+            document.getElementById('emAddFile').value = '';
+            window._emAddPendingRows = null;
+            window._emAddPendingMapping = null;
+
+            if (errors) {
+                document.getElementById('emAddStatus').textContent = newRecords.length + ' processed with ' + errors + ' error(s).';
+            } else {
+                document.getElementById('emAddStatus').textContent = '✓ ' + newRecords.length + ' new employees added.';
+            }
+
+            await loadAndRenderEmployeeMaster();
+        }
+
+        async function clearEmployeeMaster() {
+            if (!confirm('Delete ALL employee master records? This cannot be undone.')) return;
+            try {
+                await fetch(SUPABASE_URL + '/rest/v1/employee_master?id=gt.0', {
+                    method: 'DELETE',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+                });
+                await loadAndRenderEmployeeMaster();
+            } catch(e) { console.error(e); }
+        }
+
+        function exportEmployeeMasterCSV() {
+            if (!employeeMaster.length) return alert('No data to export.');
+            var cols = ['employee_code','name','surname','display_name','date_engaged','job_title','org_unit','division','project','campaign','reporting_line'];
+            var headers = ['Employee Code','Name','Surname','Display Name','Date Engaged','Job Title','Org Unit','Division','Project','Campaign','Reporting Line'];
+            var csv = headers.join(',') + '\n';
+            employeeMaster.forEach(function(e) {
+                csv += cols.map(function(c) {
+                    var v = (e[c] || '').toString();
+                    return v.indexOf(',') >= 0 ? '"' + v + '"' : v;
+                }).join(',') + '\n';
+            });
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'employee_master_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.click();
+        }
+
+        // ========== PAYROLL FILE MANAGEMENT ==========
+        var pmExceptionData = []; // [{type:'notinmaster'|'mismatch', idx, employee, field?, masterVal?, payrollVal?, action:'update_master'|'flag_payroll'|null, selected:false, payrollRow:{}}]
+        var pmPayrollRows = [];
+
+        function handlePMUpload(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            var month = document.getElementById('pmMonth').value;
+            document.getElementById('pmStatus').textContent = '⏳ Parsing ' + file.name + ' for ' + month + '...';
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async function(results) {
+                    pmPayrollRows = results.data.map(function(row) {
+                        return {
+                            employee_code: (findField(row, ['employee code','emp code','empcode','employee_code','code','employee number','emp number','emp no','employee no','empno','emp_code','staff code','staff no','payroll number','payroll no','employee id','emp id']) || '').toString().trim(),
+                            first_name: (findField(row, ['first name','firstname','first_name','name','names','given name','forename']) || '').toString().trim(),
+                            last_name: (findField(row, ['last name','lastname','last_name','surname','family name']) || '').toString().trim(),
+                            employee_name: (findField(row, ['employee','employee name','employee_name','full name','full_name','display name','display_name']) || '').toString().trim(),
+                            role: (findField(row, ['role','job title','job_title','jobtitle','position','title','designation']) || '').toString().trim(),
+                            org_unit: (findField(row, ['org unit','org_unit','orgunit','organisation','organization','department']) || '').toString().trim(),
+                            division: (findField(row, ['division','dept','div','business unit','business_unit','diviuson','divison']) || '').toString().trim(),
+                            project: (findField(row, ['project','project name']) || '').toString().trim(),
+                            campaign: (findField(row, ['campaign','campaign name','campign','campagin','campiagn']) || '').toString().trim(),
+                            reporting_line: (findField(row, ['reporting line','reporting_line','reports to','manager','supervisor','line manager','report to']) || '').toString().trim(),
+                            gross_cost: parseAmount(findField(row, ['monthly ctc','monthly_ctc','ctc','gross cost','gross_cost','cost','salary','amount','total cost','total_cost','total'])),
+                            raw: row
+                        };
+                    });
+                    // Build display name from first + last if no explicit employee_name
+                    pmPayrollRows.forEach(function(pr) {
+                        if (!pr.employee_name && (pr.first_name || pr.last_name)) {
+                            pr.employee_name = (pr.first_name + ' ' + pr.last_name).trim();
+                        }
+                    });
+
+                    document.getElementById('pmStatus').textContent = '✅ ' + pmPayrollRows.length + ' rows parsed. Saving to database...';
+
+                    // Save payroll to Supabase (same as Upload Data page)
+                    await db.from('payroll_data').delete().eq('month', month);
+                    var dbRows = pmPayrollRows.map(function(pr) {
+                        return { month: month, employee: pr.employee_name || (pr.first_name + ' ' + pr.last_name).trim() || pr.employee_code, role: pr.role, org_unit: pr.org_unit, division: pr.division, project: pr.project, campaign: pr.campaign, gross_cost: pr.gross_cost, raw_data: pr.raw };
+                    });
+                    for (var b = 0; b < dbRows.length; b += 100) { await db.from('payroll_data').insert(dbRows.slice(b, b + 100)); }
+
+                    document.getElementById('pmStatus').textContent = '✅ ' + pmPayrollRows.length + ' rows saved. Loading Employee Master for validation...';
+
+                    // Always reload fresh employee master for accurate comparison
+                    await loadAndRenderEmployeeMaster();
+
+                    // Build lookup by employee_code
+                    var masterLookup = {};
+                    employeeMaster.forEach(function(e) {
+                        if (e.employee_code) masterLookup[e.employee_code.toString().trim().toLowerCase()] = e;
+                    });
+
+                    // Process: auto-correct found rows, collect not-in-master
+                    pmExceptionData = [];
+                    var matched = 0;
+                    var corrected = 0;
+                    var notInMaster = 0;
+                    var correctionLog = []; // {employee_code, employee_name, field, oldVal, newVal}
+
+                    var masterFields = [
+                        { masterKey: 'job_title', payrollKey: 'role', label: 'Role' },
+                        { masterKey: 'org_unit', payrollKey: 'org_unit', label: 'Org Unit' },
+                        { masterKey: 'division', payrollKey: 'division', label: 'Division' },
+                        { masterKey: 'project', payrollKey: 'project', label: 'Project' },
+                        { masterKey: 'campaign', payrollKey: 'campaign', label: 'Campaign' }
+                    ];
+
+                    pmPayrollRows.forEach(function(pr, idx) {
+                        var code = pr.employee_code.toLowerCase();
+                        var master = masterLookup[code];
+
+                        if (!master) {
+                            notInMaster++;
+                            pmExceptionData.push({
+                                type: 'notinmaster',
+                                idx: idx,
+                                employee_code: pr.employee_code,
+                                employee_name: pr.employee_name,
+                                payrollRow: pr,
+                                action: 'add_to_master',
+                                selected: false
+                            });
+                            return;
+                        }
+
+                        // Auto-correct payroll row to match master
+                        var rowCorrected = false;
+                        masterFields.forEach(function(f) {
+                            var mv = (master[f.masterKey] || '').toString().trim();
+                            var pv = (pr[f.payrollKey] || '').toString().trim();
+                            if (mv && mv.toLowerCase() !== pv.toLowerCase()) {
+                                correctionLog.push({
+                                    employee_code: pr.employee_code,
+                                    employee_name: pr.employee_name || (master.name + ' ' + master.surname),
+                                    field: f.label,
+                                    oldVal: pv || '(empty)',
+                                    newVal: mv
+                                });
+                                pr[f.payrollKey] = mv;
+                                rowCorrected = true;
+                            }
+                        });
+
+                        if (rowCorrected) corrected++;
+                        else matched++;
+                    });
+
+                    // Re-save corrected payroll to Supabase
+                    if (corrected > 0) {
+                        document.getElementById('pmStatus').textContent = '⏳ Saving corrected payroll data...';
+                        await db.from('payroll_data').delete().eq('month', month);
+                        var dbRows2 = pmPayrollRows.map(function(pr) {
+                            return { month: month, employee: pr.employee_name || (pr.first_name + ' ' + pr.last_name).trim() || pr.employee_code, role: pr.role, org_unit: pr.org_unit, division: pr.division, project: pr.project, campaign: pr.campaign, gross_cost: pr.gross_cost, raw_data: pr.raw };
+                        });
+                        for (var b2 = 0; b2 < dbRows2.length; b2 += 100) { await db.from('payroll_data').insert(dbRows2.slice(b2, b2 + 100)); }
+                    }
+
+                    // Store correction log for display
+                    window._pmCorrectionLog = correctionLog;
+
+                    // Update summary
+                    document.getElementById('pmTotalRows').textContent = pmPayrollRows.length;
+                    document.getElementById('pmMatched').textContent = matched;
+                    document.getElementById('pmMismatches').textContent = corrected;
+                    document.getElementById('pmNotInMaster').textContent = notInMaster;
+                    document.getElementById('pmSummary').classList.remove('hidden');
+
+                    // Show correction log if any
+                    if (corrected > 0) {
+                        document.getElementById('pmMismatchSection').classList.remove('hidden');
+                        document.getElementById('pmMismatchCount').textContent = '(' + correctionLog.length + ' fields auto-corrected from master)';
+                        document.getElementById('pmMismatchBody').innerHTML = correctionLog.map(function(c) {
+                            return '<tr>'
+                                + '<td></td>'
+                                + '<td><span class="font-mono text-xs text-gray-500">' + esc(c.employee_code) + '</span> ' + esc(c.employee_name) + '</td>'
+                                + '<td><span class="badge badge-gray">' + esc(c.field) + '</span></td>'
+                                + '<td class="text-sm line-through text-red-400">' + esc(c.oldVal) + '</td>'
+                                + '<td class="text-sm font-semibold text-emerald-600">' + esc(c.newVal) + '</td>'
+                                + '<td><span class="badge badge-green">✓ Auto-corrected</span></td>'
+                                + '</tr>';
+                        }).join('');
+                    } else {
+                        document.getElementById('pmMismatchSection').classList.add('hidden');
+                    }
+
+                    if (notInMaster === 0 && corrected === 0) {
+                        document.getElementById('pmValidationStatus').innerHTML = '<span class="badge badge-green text-sm">✅ All matched — Ready for Reporting</span>';
+                        document.getElementById('pmNoExceptions').classList.remove('hidden');
+                        document.getElementById('pmNotInMasterSection').classList.add('hidden');
+                    } else if (notInMaster === 0) {
+                        document.getElementById('pmValidationStatus').innerHTML = '<span class="badge badge-green text-sm">✅ ' + corrected + ' rows auto-corrected from master — Ready for Reporting</span>';
+                        document.getElementById('pmNoExceptions').classList.add('hidden');
+                    } else {
+                        document.getElementById('pmValidationStatus').innerHTML = '<span class="badge badge-amber text-sm">⚠️ ' + notInMaster + ' employees not in master — Review Required</span>';
+                        document.getElementById('pmNoExceptions').classList.add('hidden');
+                    }
+
+                    document.getElementById('pmExceptions').classList.remove('hidden');
+                    renderPMExceptions();
+                    document.getElementById('pmStatus').textContent = '✅ Validation complete.';
+
+                    // Save status record with counts and refresh file list
+                    var totalCtc = 0;
+                    pmPayrollRows.forEach(function(pr) { totalCtc += (parseFloat(pr.gross_cost) || 0); });
+                    await fetch(SUPABASE_URL + '/rest/v1/payroll_file_status', {
+                        method: 'POST',
+                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+                        body: JSON.stringify({ month: month, status: 'not_live', employee_count: pmPayrollRows.length, total_ctc: totalCtc, uploaded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                    });
+                    await loadPayrollFilesList();
+                }
+            });
+        }
+
+        // Build distinct dropdown options from employee master
+        function pmMasterOptions(field) {
+            var vals = [...new Set(employeeMaster.map(function(e) { return (e[field] || '').toString().trim(); }).filter(Boolean))].sort();
+            return vals;
+        }
+
+        function pmDropdown(globalIdx, field, currentVal) {
+            var opts = pmMasterOptions(field);
+            var html = '<select class="select-field text-xs" style="min-width:120px" onchange="pmUpdateNimField(' + globalIdx + ',\'' + field + '\',this.value)">';
+            html += '<option value="">— Select —</option>';
+            var matched = false;
+            opts.forEach(function(v) {
+                var sel = (v.toLowerCase() === (currentVal || '').toLowerCase()) ? ' selected' : '';
+                if (sel) matched = true;
+                html += '<option value="' + esc(v) + '"' + sel + '>' + esc(v) + '</option>';
+            });
+            // If current value not in master, show it as a non-selectable hint
+            if (!matched && currentVal) {
+                html += '<option disabled style="color:#dc2626">⚠ "' + esc(currentVal) + '" (not in master)</option>';
+            }
+            html += '</select>';
+            return html;
+        }
+
+        function pmUpdateNimField(globalIdx, field, value) {
+            var e = pmExceptionData[globalIdx];
+            if (!e) return;
+            // Map dropdown field back to payrollRow key
+            var keyMap = { 'job_title': 'role', 'org_unit': 'org_unit', 'division': 'division', 'project': 'project', 'campaign': 'campaign' };
+            var prKey = keyMap[field] || field;
+            e.payrollRow[prKey] = value;
+        }
+
+        function renderPMExceptions() {
+            // Not in Master
+            var nim = pmExceptionData.filter(function(e) { return e.type === 'notinmaster'; });
+            var nimBody = document.getElementById('pmNotInMasterBody');
+            if (nim.length) {
+                document.getElementById('pmNotInMasterSection').classList.remove('hidden');
+                document.getElementById('pmNotInMasterCount').textContent = '(' + nim.length + ' employees)';
+                nimBody.innerHTML = nim.map(function(e, i) {
+                    var globalIdx = pmExceptionData.indexOf(e);
+                    return '<tr>'
+                        + '<td><input type="checkbox" class="checkbox-styled" data-idx="' + globalIdx + '" onchange="pmToggleItem(' + globalIdx + ', this.checked)" ' + (e.selected ? 'checked' : '') + ' /></td>'
+                        + '<td class="font-mono text-xs">' + esc(e.employee_code) + '</td>'
+                        + '<td>' + esc(e.payrollRow.first_name) + '</td>'
+                        + '<td>' + esc(e.payrollRow.last_name) + '</td>'
+                        + '<td>' + pmDropdown(globalIdx, 'job_title', e.payrollRow.role) + '</td>'
+                        + '<td>' + pmDropdown(globalIdx, 'org_unit', e.payrollRow.org_unit) + '</td>'
+                        + '<td>' + pmDropdown(globalIdx, 'division', e.payrollRow.division) + '</td>'
+                        + '<td>' + pmDropdown(globalIdx, 'project', e.payrollRow.project) + '</td>'
+                        + '<td>' + pmDropdown(globalIdx, 'campaign', e.payrollRow.campaign) + '</td>'
+                        + '<td><span class="badge badge-blue">Add to Master</span></td>'
+                        + '</tr>';
+                }).join('');
+            } else {
+                document.getElementById('pmNotInMasterSection').classList.add('hidden');
+            }
+
+            // Mismatches
+            var mm = pmExceptionData.filter(function(e) { return e.type === 'mismatch'; });
+            var mmBody = document.getElementById('pmMismatchBody');
+            if (mm.length) {
+                document.getElementById('pmMismatchSection').classList.remove('hidden');
+                document.getElementById('pmMismatchCount').textContent = '(' + mm.length + ' field differences)';
+                mmBody.innerHTML = mm.map(function(e) {
+                    var globalIdx = pmExceptionData.indexOf(e);
+                    var actionHtml = '<select class="select-field text-xs" onchange="pmSetAction(' + globalIdx + ', this.value)">'
+                        + '<option value="">— Choose —</option>'
+                        + '<option value="update_master"' + (e.action === 'update_master' ? ' selected' : '') + '>Update Master → "' + esc(e.payrollVal) + '"</option>'
+                        + '<option value="flag_payroll"' + (e.action === 'flag_payroll' ? ' selected' : '') + '>Flag Payroll (keep master)</option>'
+                        + '</select>';
+                    return '<tr>'
+                        + '<td><input type="checkbox" class="checkbox-styled" data-idx="' + globalIdx + '" onchange="pmToggleItem(' + globalIdx + ', this.checked)" ' + (e.selected ? 'checked' : '') + ' /></td>'
+                        + '<td><span class="font-mono text-xs text-gray-500">' + esc(e.employee_code) + '</span> ' + esc(e.employee_name) + '</td>'
+                        + '<td><span class="badge badge-gray">' + esc(e.field) + '</span></td>'
+                        + '<td class="text-sm">' + esc(e.masterVal) + '</td>'
+                        + '<td class="text-sm font-semibold">' + esc(e.payrollVal) + '</td>'
+                        + '<td>' + actionHtml + '</td>'
+                        + '</tr>';
+                }).join('');
+            } else {
+                document.getElementById('pmMismatchSection').classList.add('hidden');
+            }
+
+            pmUpdateApplyBtn();
+        }
+
+        function pmToggleItem(idx, checked) {
+            pmExceptionData[idx].selected = checked;
+            pmUpdateApplyBtn();
+        }
+
+        function pmToggleGroup(type, checked) {
+            pmExceptionData.forEach(function(e) { if (e.type === type) e.selected = checked; });
+            renderPMExceptions();
+        }
+
+        function pmSelectAll() {
+            pmExceptionData.forEach(function(e) { e.selected = true; });
+            renderPMExceptions();
+        }
+
+        function pmDeselectAll() {
+            pmExceptionData.forEach(function(e) { e.selected = false; });
+            renderPMExceptions();
+        }
+
+        function pmSetAction(idx, action) {
+            pmExceptionData[idx].action = action || null;
+            pmExceptionData[idx].selected = !!action;
+            pmUpdateApplyBtn();
+        }
+
+        function pmUpdateApplyBtn() {
+            var count = pmExceptionData.filter(function(e) { return e.selected && e.action; }).length;
+            // For notinmaster, action is always 'add_to_master'
+            var nimSelected = pmExceptionData.filter(function(e) { return e.type === 'notinmaster' && e.selected; }).length;
+            document.getElementById('pmApplyBtn').textContent = 'Add Selected to Master (' + nimSelected + ')';
+        }
+
+        async function pmApplySelected() {
+            var toApply = pmExceptionData.filter(function(e) {
+                return e.selected && e.type === 'notinmaster';
+            });
+
+            if (!toApply.length) return alert('No employees selected. Tick the checkboxes next to employees you want to add to the master.');
+            if (!confirm('Add ' + toApply.length + ' employees to the Employee Master?')) return;
+
+            document.getElementById('pmApplyBtn').textContent = 'Adding...';
+            var errors = 0;
+
+            var masterInserts = [];
+            toApply.forEach(function(e) {
+                masterInserts.push({
+                    employee_code: e.employee_code,
+                    name: e.payrollRow.first_name || (e.payrollRow.employee_name ? e.payrollRow.employee_name.split(' ')[0] : ''),
+                    surname: e.payrollRow.last_name || (e.payrollRow.employee_name ? e.payrollRow.employee_name.split(' ').slice(1).join(' ') : ''),
+                    display_name: e.payrollRow.employee_name || (e.payrollRow.first_name + ' ' + e.payrollRow.last_name).trim(),
+                    job_title: e.payrollRow.role,
+                    org_unit: e.payrollRow.org_unit,
+                    division: e.payrollRow.division,
+                    project: e.payrollRow.project,
+                    campaign: e.payrollRow.campaign,
+                    reporting_line: e.payrollRow.reporting_line
+                });
+            });
+
+            // Insert new employees to master
+            if (masterInserts.length) {
+                for (var i = 0; i < masterInserts.length; i += 100) {
+                    try {
+                        var res = await fetch(SUPABASE_URL + '/rest/v1/employee_master', {
+                            method: 'POST',
+                            headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                            body: JSON.stringify(masterInserts.slice(i, i + 100))
+                        });
+                        if (!res.ok) { errors++; console.error(await res.text()); }
+                    } catch(ex) { errors++; }
+                }
+            }
+
+            // (Master updates removed — payroll auto-corrects to master, not the other way)
+
+            if (errors) {
+                alert('Applied with ' + errors + ' error(s). Check console.');
+            } else {
+                alert('✅ ' + toApply.length + ' actions applied successfully.');
+            }
+
+            // Reload master and re-validate
+            await loadAndRenderEmployeeMaster();
+            // Re-trigger validation by simulating the same data
+            document.getElementById('pmStatus').textContent = 'Re-validating...';
+
+            var masterLookup = {};
+            employeeMaster.forEach(function(e) {
+                if (e.employee_code) masterLookup[e.employee_code.toString().trim().toLowerCase()] = e;
+            });
+
+            pmExceptionData = [];
+            var nimCount = 0;
+            pmPayrollRows.forEach(function(pr, idx) {
+                var code = pr.employee_code.toLowerCase();
+                var master = masterLookup[code];
+                if (!master) {
+                    nimCount++;
+                    pmExceptionData.push({ type:'notinmaster', idx:idx, employee_code:pr.employee_code, employee_name:pr.employee_name, payrollRow:pr, action:'add_to_master', selected:false });
+                }
+            });
+
+            document.getElementById('pmTotalRows').textContent = pmPayrollRows.length;
+            document.getElementById('pmMatched').textContent = pmPayrollRows.length - nimCount;
+            document.getElementById('pmMismatches').textContent = '0';
+            document.getElementById('pmNotInMaster').textContent = nimCount;
+
+            if (nimCount === 0) {
+                document.getElementById('pmValidationStatus').innerHTML = '<span class="badge badge-green text-sm">✅ All matched — Ready for Reporting</span>';
+                document.getElementById('pmNoExceptions').classList.remove('hidden');
+                document.getElementById('pmNotInMasterSection').classList.add('hidden');
+            } else {
+                document.getElementById('pmValidationStatus').innerHTML = '<span class="badge badge-amber text-sm">⚠️ ' + nimCount + ' employees not in master — Review Required</span>';
+                document.getElementById('pmNoExceptions').classList.add('hidden');
+            }
+
+            renderPMExceptions();
+            document.getElementById('pmStatus').textContent = '✅ Re-validation complete.';
+        }
+
+        // ========== PAYROLL FILES LIST ==========
+        async function loadPayrollFilesList() {
+            var months = [];
+            try {
+                var res = await fetch(SUPABASE_URL + '/rest/v1/payroll_file_status?select=*&order=month.desc', {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+                });
+                var data = await res.json();
+                if (Array.isArray(data)) {
+                    months = data.map(function(s) {
+                        return { month: s.month, employees: s.employee_count || 0, total_ctc: parseFloat(s.total_ctc) || 0, status: s.status, uploaded_at: s.uploaded_at };
+                    });
+                }
+            } catch(e) { console.error(e); }
+
+            var body = document.getElementById('pmFilesBody');
+            if (!months.length) {
+                body.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-6">No payroll files imported yet</td></tr>';
+                return;
+            }
+
+            body.innerHTML = months.map(function(m) {
+                var isLive = m.status === 'live';
+                var uploaded = m.uploaded_at ? new Date(m.uploaded_at).toLocaleDateString('en-ZA') : '—';
+                var statusBadge = isLive
+                    ? '<span class="badge badge-green cursor-pointer" onclick="pmToggleFileStatus(\'' + m.month + '\', \'not_live\')">● Live</span>'
+                    : '<span class="badge badge-gray cursor-pointer" onclick="pmToggleFileStatus(\'' + m.month + '\', \'live\')">○ Not Live</span>';
+                var monthLabel = new Date(m.month + '-01').toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
+                return '<tr>'
+                    + '<td class="font-semibold">' + monthLabel + '</td>'
+                    + '<td>' + m.employees.toLocaleString() + '</td>'
+                    + '<td class="font-semibold">R ' + m.total_ctc.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>'
+                    + '<td class="text-xs text-gray-500">' + uploaded + '</td>'
+                    + '<td>' + statusBadge + '</td>'
+                    + '<td><button onclick="pmDeleteFile(\'' + m.month + '\')" class="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer">Delete</button></td>'
+                    + '</tr>';
+            }).join('');
+        }
+
+        async function pmToggleFileStatus(month, newStatus) {
+            try {
+                // Upsert status
+                await fetch(SUPABASE_URL + '/rest/v1/payroll_file_status', {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+                    body: JSON.stringify({ month: month, status: newStatus, updated_at: new Date().toISOString() })
+                });
+            } catch(e) { console.error(e); }
+            await loadPayrollFilesList();
+        }
+
+        async function pmDeleteFile(month) {
+            var label = new Date(month + '-01').toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
+            if (!confirm('Delete all payroll data for ' + label + '? This cannot be undone.')) return;
+            try {
+                await db.from('payroll_data').delete().eq('month', month);
+                await fetch(SUPABASE_URL + '/rest/v1/payroll_file_status?month=eq.' + encodeURIComponent(month), {
+                    method: 'DELETE',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+                });
+            } catch(e) { console.error(e); }
+            await loadPayrollFilesList();
+        }
+
+        // ========== FIELD FINDER ==========
+        function findField(row, names) {
+            var keys = Object.keys(row);
+            for (var i = 0; i < names.length; i++) {
+                for (var j = 0; j < keys.length; j++) {
+                    if (keys[j].toLowerCase().trim() === names[i].toLowerCase()) return row[keys[j]];
+                }
+            }
+            return null;
+        }
+        function parseAmount(str) { return parseFloat(String(str || '0').replace(/[^0-9.\-]/g, '')) || 0; }
+
+        // ========== DASHBOARD ==========
+        function calcBuckets() {
+            var payroll = data.payrollData || [];
+            var costs = data.costData || [];
+            var allocByRole = {};
+            data.payrollAllocations.forEach(function(a) { allocByRole[(a.role + '||' + a.org_unit).toLowerCase()] = a; });
+            var bd = {};
+            BUCKETS.forEach(function(b) { bd[b] = { agentPayroll: 0, supportPayroll: 0, supportAlloc: 0, fixedCosts: 0, agentCount: 0,
+                agentByDiv: {}, supportByDiv: {}, adminByDiv: {}, fixedByCat: {} }; });
+            var totalPayroll = 0, employeeCount = 0;
+            payroll.forEach(function(row) {
+                var role = row.role || '';
+                var org = row.org_unit || '';
+                var div = row.division || 'Unassigned';
+                var cost = parseFloat(row.gross_cost) || 0;
+                totalPayroll += cost;
+                employeeCount++;
+                var alloc = allocByRole[(role + '||' + org).toLowerCase()];
+                if (!alloc) return;
+                var isCC = CC_ORGS.some(function(o) { return org.toLowerCase().indexOf(o) >= 0; });
+                var isRevGen = alloc.rev_gen;
+                BUCKETS.forEach(function(b) {
+                    var pct = (parseFloat(alloc[b]) || 0) / 100;
+                    if (pct === 0) return;
+                    var allocated = cost * pct;
+                    if (isCC && isRevGen) {
+                        bd[b].agentPayroll += allocated; bd[b].agentCount += pct;
+                        bd[b].agentByDiv[div] = (bd[b].agentByDiv[div] || 0) + allocated;
+                    } else if (isCC && !isRevGen) {
+                        bd[b].supportPayroll += allocated;
+                        bd[b].supportByDiv[div] = (bd[b].supportByDiv[div] || 0) + allocated;
+                    } else {
+                        bd[b].supportAlloc += allocated;
+                        bd[b].adminByDiv[div] = (bd[b].adminByDiv[div] || 0) + allocated;
+                    }
+                });
+            });
+            var totalFixed = 0;
+            costs.forEach(function(row) {
+                var amount = parseFloat(row.amount) || 0;
+                var cat = row.category || 'Uncategorised';
+                totalFixed += amount;
+                BUCKETS.forEach(function(b) {
+                    var pct = (parseFloat(row[b]) || 0) / 100;
+                    if (pct > 0) {
+                        bd[b].fixedCosts += amount * pct;
+                        bd[b].fixedByCat[cat] = (bd[b].fixedByCat[cat] || 0) + amount * pct;
+                    }
+                });
+            });
+            return { bd: bd, totalPayroll: totalPayroll, totalFixed: totalFixed, employeeCount: employeeCount };
+        }
+
+        function renderDashboard() {
+            var r = calcBuckets();
+            var bd = r.bd;
+            var localTotal = bd.local_cc.agentPayroll + bd.local_cc.supportPayroll + bd.local_cc.supportAlloc + bd.local_cc.fixedCosts;
+            var intTotal = bd.int_cc.agentPayroll + bd.int_cc.supportPayroll + bd.int_cc.supportAlloc + bd.int_cc.fixedCosts;
+            var grandTotal = 0, totalAgents = 0;
+            var totalAgentPayroll = 0, totalSupportPayroll = 0, totalSupportAlloc = 0, totalFixedCosts = 0;
+            BUCKETS.forEach(function(b) {
+                grandTotal += bd[b].agentPayroll + bd[b].supportPayroll + bd[b].supportAlloc + bd[b].fixedCosts;
+                totalAgents += bd[b].agentCount;
+                totalAgentPayroll += bd[b].agentPayroll;
+                totalSupportPayroll += bd[b].supportPayroll;
+                totalSupportAlloc += bd[b].supportAlloc;
+                totalFixedCosts += bd[b].fixedCosts;
+            });
+            var grandCPA = totalAgents > 0 ? grandTotal / totalAgents : 0;
+            var localCPA = bd.local_cc.agentCount > 0 ? localTotal / bd.local_cc.agentCount : 0;
+            var intCPA = bd.int_cc.agentCount > 0 ? intTotal / bd.int_cc.agentCount : 0;
+
+            document.getElementById('heroTotalCosts').textContent = fmtR(grandTotal);
+            document.getElementById('heroBreakdown').innerHTML =
+                'Agent Payroll: ' + fmtR(totalAgentPayroll) + '<br>Support Payroll: ' + fmtR(totalSupportPayroll) +
+                '<br>Admin Support: ' + fmtR(totalSupportAlloc) + '<br>Fixed: ' + fmtR(totalFixedCosts);
+            document.getElementById('heroAgentCount').textContent = Math.round(totalAgents).toLocaleString();
+            document.getElementById('heroAgentSplit').innerHTML = 'Local: ' + Math.round(bd.local_cc.agentCount) + ' · Int\'l: ' + Math.round(bd.int_cc.agentCount);
+            document.getElementById('heroCPA').textContent = fmtR(grandCPA);
+            document.getElementById('heroCPASplit').innerHTML = 'Local: ' + fmtR(localCPA) + ' · Int\'l: ' + fmtR(intCPA);
+            document.getElementById('summPayroll').textContent = fmtR(r.totalPayroll);
+            document.getElementById('summPayrollSub').textContent = r.employeeCount + ' employees';
+            document.getElementById('summFixed').textContent = fmtR(r.totalFixed);
+            document.getElementById('summFixedSub').textContent = 'Imported cost entries';
+            document.getElementById('summLocalCPA').textContent = fmtR(localCPA);
+            document.getElementById('summLocalSub').textContent = Math.round(bd.local_cc.agentCount) + ' revenue agents';
+            document.getElementById('summIntCPA').textContent = fmtR(intCPA);
+            document.getElementById('summIntSub').textContent = Math.round(bd.int_cc.agentCount) + ' revenue agents';
+
+            // Payroll bucket breakdown
+            var BUCKET_LABELS = { local_cc: 'CC Local', int_cc: 'CC International', retail: 'Retail', product: 'Product', mvnx: 'MVNX', gumtree: 'Gumtree' };
+            var payrollHtml = '', fixedHtml = '';
+            var allocatedPayroll = 0, allocatedFixed = 0;
+            function bucketRow(label, amount, pct, bold) {
+                var cls = bold ? 'font-semibold text-gray-900' : 'text-gray-700 font-medium';
+                var lblCls = bold ? 'font-semibold text-gray-700' : 'text-gray-500';
+                return '<div class="flex justify-between items-center text-xs' + (bold ? ' pt-2 mt-2 border-t border-gray-200' : '') + '"><span class="' + lblCls + '">' + label + '</span><div class="flex gap-2"><span class="text-gray-400 w-12 text-right">' + pct + '</span><span class="' + cls + ' w-28 text-right">' + fmtR(amount) + '</span></div></div>';
+            }
+            BUCKETS.forEach(function(b) {
+                var payBucket = bd[b].agentPayroll + bd[b].supportPayroll + bd[b].supportAlloc;
+                allocatedPayroll += payBucket;
+                var payPct = r.totalPayroll > 0 ? (payBucket / r.totalPayroll * 100).toFixed(1) + '%' : '0.0%';
+                payrollHtml += bucketRow(BUCKET_LABELS[b], payBucket, payPct, false);
+                var fixBucket = bd[b].fixedCosts;
+                allocatedFixed += fixBucket;
+                var fixPct = r.totalFixed > 0 ? (fixBucket / r.totalFixed * 100).toFixed(1) + '%' : '0.0%';
+                fixedHtml += bucketRow(BUCKET_LABELS[b], fixBucket, fixPct, false);
+            });
+            var unallocPay = r.totalPayroll - allocatedPayroll;
+            if (unallocPay > 0.01) {
+                var uPct = r.totalPayroll > 0 ? (unallocPay / r.totalPayroll * 100).toFixed(1) + '%' : '0.0%';
+                payrollHtml += bucketRow('Unallocated', unallocPay, uPct, false);
+            }
+            payrollHtml += bucketRow('Total', r.totalPayroll, '100%', true);
+            var unallocFix = r.totalFixed - allocatedFixed;
+            if (unallocFix > 0.01) {
+                var uFPct = r.totalFixed > 0 ? (unallocFix / r.totalFixed * 100).toFixed(1) + '%' : '0.0%';
+                fixedHtml += bucketRow('Unallocated', unallocFix, uFPct, false);
+            }
+            fixedHtml += bucketRow('Total', r.totalFixed, '100%', true);
+            document.getElementById('summPayrollBuckets').innerHTML = payrollHtml;
+            document.getElementById('summFixedBuckets').innerHTML = fixedHtml;
+
+            document.getElementById('detailPanelLocal').innerHTML = renderDetailPanel('local_cc', 'CC Local', '#3b82f6', bd.local_cc);
+            document.getElementById('detailPanelIntl').innerHTML = renderDetailPanel('int_cc', 'CC International', '#8b5cf6', bd.int_cc);
+        }
+
+        var expandedCostSections = {};
+        window.toggleCostSection = function(id) {
+            expandedCostSections[id] = !expandedCostSections[id];
+            var el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden');
+            var arrow = document.getElementById('arrow-' + id);
+            if (arrow) arrow.textContent = expandedCostSections[id] ? '▾' : '▸';
+        };
+
+        function renderBreakdownRows(breakdown, parentTotal) {
+            var sorted = Object.keys(breakdown).sort(function(a, b) { return breakdown[b] - breakdown[a]; });
+            var html = '';
+            sorted.forEach(function(key) {
+                var val = breakdown[key];
+                var pct = parentTotal > 0 ? (val / parentTotal * 100).toFixed(1) : '0.0';
+                html += '<div class="flex justify-between items-center px-8 py-1.5 text-xs border-b border-gray-50 bg-gray-50/50">' +
+                    '<span class="text-gray-500">' + key + '</span>' +
+                    '<div class="flex items-center gap-3">' +
+                        '<span class="text-gray-400 w-12 text-right">' + pct + '%</span>' +
+                        '<span class="text-gray-600 font-medium w-28 text-right">' + fmtR(val) + '</span>' +
+                    '</div></div>';
+            });
+            return html;
+        }
+
+        function renderDetailPanel(key, label, dotColor, d) {
+            var total = d.agentPayroll + d.supportPayroll + d.supportAlloc + d.fixedCosts;
+            var cpa = d.agentCount > 0 ? total / d.agentCount : 0;
+            var agentCPA = d.agentCount > 0 ? d.agentPayroll / d.agentCount : 0;
+            var supportCPA = d.agentCount > 0 ? d.supportPayroll / d.agentCount : 0;
+            var allocCPA = d.agentCount > 0 ? d.supportAlloc / d.agentCount : 0;
+            var fixedCPA = d.agentCount > 0 ? d.fixedCosts / d.agentCount : 0;
+            var agentId = key + '-agent', supportId = key + '-support', adminId = key + '-admin', fixedId = key + '-fixed';
+            return '<div class="detail-panel">' +
+                '<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color:#f0f0f0">' +
+                    '<div class="h-2.5 w-2.5 rounded-full" style="background:' + dotColor + '"></div>' +
+                    '<span class="font-semibold text-sm text-gray-900">' + label + '</span>' +
+                '</div>' +
+                renderCostLineExpand('Agent Payroll', d.agentPayroll, agentCPA, agentId, d.agentByDiv || {}, d.agentPayroll) +
+                renderCostLineExpand('Support Payroll', d.supportPayroll, supportCPA, supportId, d.supportByDiv || {}, d.supportPayroll) +
+                renderCostLineExpand('Admin Support', d.supportAlloc, allocCPA, adminId, d.adminByDiv || {}, d.supportAlloc) +
+                renderCostLineExpand('Fixed Costs', d.fixedCosts, fixedCPA, fixedId, d.fixedByCat || {}, d.fixedCosts) +
+                '<div class="total-line text-sm text-gray-900"><span>Total Cost</span><span>' + fmtR(total) + '</span></div>' +
+                '<div class="px-5 py-2 flex justify-between text-xs text-gray-500"><span>Revenue Agents</span><span>' + Math.round(d.agentCount) + '</span></div>' +
+                '<div class="cpa-line"><span class="text-sm font-semibold text-teal-700">Cost Per Agent</span><span class="text-lg font-bold text-teal-700">' + fmtR(cpa) + '</span></div></div>';
+        }
+
+        function renderCostLineExpand(label, amount, perAgent, sectionId, breakdown, parentTotal) {
+            var hasData = Object.keys(breakdown).length > 0;
+            var isOpen = expandedCostSections[sectionId];
+            return '<div>' +
+                '<div class="cost-line text-sm cursor-pointer" onclick="toggleCostSection(\'' + sectionId + '\')">' +
+                    '<div class="flex items-center gap-2">' +
+                        (hasData ? '<span id="arrow-' + sectionId + '" class="text-gray-400 text-xs w-3">' + (isOpen ? '▾' : '▸') + '</span>' : '<span class="w-3"></span>') +
+                        '<span class="text-gray-600">' + label + '</span>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-3"><span class="text-xs text-gray-400">(' + fmtR(perAgent) + '/agent)</span><span class="font-medium text-gray-900">' + fmtR(amount) + '</span></div>' +
+                '</div>' +
+                '<div id="' + sectionId + '" class="' + (isOpen ? '' : 'hidden') + '">' +
+                    renderBreakdownRows(breakdown, parentTotal) +
+                '</div></div>';
+        }
+
+        function renderCostLine(label, amount, perAgent) {
+            return '<div class="cost-line text-sm"><span class="text-gray-600">' + label + '</span>' +
+                '<div class="flex items-center gap-3"><span class="text-xs text-gray-400">(' + fmtR(perAgent) + '/agent)</span><span class="font-medium text-gray-900">' + fmtR(amount) + '</span></div></div>';
+        }
+
+        // ========== CPA LOCAL / INTERNATIONAL ==========
+        function getCPAFilters(prefix, orgFilter) {
+            var payroll = (data.payrollData || []).filter(function(r) { return (r.org_unit || '').toLowerCase().indexOf(orgFilter) >= 0; });
+            var projects = {}, campaigns = {};
+            payroll.forEach(function(r) { if (r.project) projects[r.project] = true; if (r.campaign) campaigns[r.campaign] = true; });
+            return { payroll: payroll, projects: Object.keys(projects).sort(), campaigns: Object.keys(campaigns).sort() };
+        }
+
+        function populateCPAFilters(prefix, projects, campaigns) {
+            var pSel = document.getElementById(prefix + 'ProjectFilter');
+            var cSel = document.getElementById(prefix + 'CampaignFilter');
+            var pVal = pSel.value, cVal = cSel.value;
+            pSel.innerHTML = '<option value="">All Projects</option>';
+            projects.forEach(function(p) { pSel.innerHTML += '<option value="' + p + '">' + p + '</option>'; });
+            if (pVal) pSel.value = pVal;
+            cSel.innerHTML = '<option value="">All Campaigns</option>';
+            campaigns.forEach(function(c) { cSel.innerHTML += '<option value="' + c + '">' + c + '</option>'; });
+            if (cVal) cSel.value = cVal;
+        }
+
+        function calcCPABucket(bucketKey, orgFilter, projectFilter, campaignFilter) {
+            var payroll = (data.payrollData || []).filter(function(r) {
+                var org = (r.org_unit || '').toLowerCase();
+                if (org.indexOf(orgFilter) < 0) return false;
+                if (projectFilter && r.project !== projectFilter) return false;
+                if (campaignFilter && r.campaign !== campaignFilter) return false;
+                return true;
+            });
+            var allocByRole = {};
+            data.payrollAllocations.forEach(function(a) { allocByRole[(a.role + '||' + a.org_unit).toLowerCase()] = a; });
+            var result = { agentPayroll: 0, supportPayroll: 0, adminSupport: 0, fixedCosts: 0, agentCount: 0, totalPayroll: 0, employeeCount: 0 };
+            payroll.forEach(function(row) {
+                var cost = parseFloat(row.gross_cost) || 0;
+                result.totalPayroll += cost;
+                result.employeeCount++;
+                var alloc = allocByRole[(row.role + '||' + row.org_unit).toLowerCase()];
+                if (!alloc) return;
+                var pct = (parseFloat(alloc[bucketKey]) || 0) / 100;
+                if (pct === 0) return;
+                var allocated = cost * pct;
+                var isCC = CC_ORGS.some(function(o) { return (row.org_unit || '').toLowerCase().indexOf(o) >= 0; });
+                if (isCC && alloc.rev_gen) { result.agentPayroll += allocated; result.agentCount += pct; }
+                else if (isCC) { result.supportPayroll += allocated; }
+                else { result.adminSupport += allocated; }
+            });
+            // Fixed costs (not filterable by project/campaign)
+            (data.costData || []).forEach(function(row) {
+                var amt = parseFloat(row.amount) || 0;
+                var pct = (parseFloat(row[bucketKey]) || 0) / 100;
+                if (pct > 0) result.fixedCosts += amt * pct;
+            });
+            return result;
+        }
+
+        function renderCPAPage(prefix, bucketKey, orgFilter, dotColor) {
+            var info = getCPAFilters(prefix, orgFilter);
+            populateCPAFilters(prefix, info.projects, info.campaigns);
+            var pFilter = document.getElementById(prefix + 'ProjectFilter').value;
+            var cFilter = document.getElementById(prefix + 'CampaignFilter').value;
+            var d = calcCPABucket(bucketKey, orgFilter, pFilter, cFilter);
+            var total = d.agentPayroll + d.supportPayroll + d.adminSupport + d.fixedCosts;
+            var cpa = d.agentCount > 0 ? total / d.agentCount : 0;
+
+            document.getElementById(prefix + 'HeroCards').innerHTML =
+                '<div class="flex-1 hero-metric"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Costs</p>' +
+                '<p class="text-3xl font-bold text-gray-900">' + fmtR(total) + '</p>' +
+                '<div class="mt-3 space-y-1 text-xs text-gray-500">' +
+                    'Agent Payroll: ' + fmtR(d.agentPayroll) + '<br>Support Payroll: ' + fmtR(d.supportPayroll) +
+                    '<br>Admin Support: ' + fmtR(d.adminSupport) + '<br>Fixed: ' + fmtR(d.fixedCosts) + '</div></div>' +
+                '<div class="flex items-center justify-center px-2"><span class="text-2xl text-gray-300 font-light">÷</span></div>' +
+                '<div class="flex-1 flex flex-col items-center justify-center hero-metric"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Agents</p>' +
+                '<p class="text-3xl font-bold text-gray-900">' + Math.round(d.agentCount).toLocaleString() + '</p></div>' +
+                '<div class="flex items-center justify-center px-2"><span class="text-2xl text-gray-300 font-light">=</span></div>' +
+                '<div class="flex-1 cpa-metric"><p class="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">Cost Per Agent</p>' +
+                '<p class="text-3xl font-bold text-teal-700">' + fmtR(cpa) + '</p></div>';
+
+            document.getElementById(prefix + 'SummaryCards').innerHTML =
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Payroll</p><p class="text-xl font-bold text-gray-900 mt-1">' + fmtR(d.totalPayroll) + '</p><p class="text-xs text-gray-400 mt-1">' + d.employeeCount + ' employees</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Fixed Costs</p><p class="text-xl font-bold text-gray-900 mt-1">' + fmtR(d.fixedCosts) + '</p><p class="text-xs text-gray-400 mt-1">Imported entries</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Revenue Agents</p><p class="text-xl font-bold text-gray-900 mt-1">' + Math.round(d.agentCount) + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Cost Per Agent</p><p class="text-xl font-bold text-teal-700 mt-1">' + fmtR(cpa) + '</p></div>';
+
+            var agentCPA = d.agentCount > 0 ? d.agentPayroll / d.agentCount : 0;
+            var supportCPA = d.agentCount > 0 ? d.supportPayroll / d.agentCount : 0;
+            var adminCPA = d.agentCount > 0 ? d.adminSupport / d.agentCount : 0;
+            var fixedCPA = d.agentCount > 0 ? d.fixedCosts / d.agentCount : 0;
+            document.getElementById(prefix + 'DetailPanel').innerHTML =
+                '<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color:#f0f0f0"><div class="h-2.5 w-2.5 rounded-full" style="background:' + dotColor + '"></div><span class="font-semibold text-sm text-gray-900">' + (prefix === 'local' ? 'CC Local' : 'CC International') + '</span></div>' +
+                renderCostLine('Agent Payroll', d.agentPayroll, agentCPA) +
+                renderCostLine('Support Payroll', d.supportPayroll, supportCPA) +
+                renderCostLine('Admin Support', d.adminSupport, adminCPA) +
+                renderCostLine('Fixed Costs', d.fixedCosts, fixedCPA) +
+                '<div class="total-line text-sm text-gray-900"><span>Total Cost</span><span>' + fmtR(total) + '</span></div>' +
+                '<div class="px-5 py-2 flex justify-between text-xs text-gray-500"><span>Revenue Agents</span><span>' + Math.round(d.agentCount) + '</span></div>' +
+                '<div class="cpa-line"><span class="text-sm font-semibold text-teal-700">Cost Per Agent</span><span class="text-lg font-bold text-teal-700">' + fmtR(cpa) + '</span></div>';
+        }
+
+        window.renderCPALocal = function() { renderCPAPage('local', 'local_cc', 'local', '#3b82f6'); };
+        window.renderCPAIntl = function() { renderCPAPage('intl', 'int_cc', 'international', '#8b5cf6'); };
+
+        // ========== UPLOAD ==========
+        function handlePayrollUpload(e) {
+            var file = e.target.files[0]; if (!file) return;
+            var uploadMonth = document.getElementById('uploadMonth').value;
+            if (!confirm('Upload payroll data for: ' + uploadMonth + '?\n\nClick OK to proceed or Cancel to change the month.')) {
+                e.target.value = ''; return;
+            }
+            document.getElementById('payrollStatus').textContent = '⏳ Uploading for ' + uploadMonth + '...';
+            document.getElementById('payrollStatus').style.color = '#d97706';
+            Papa.parse(file, { header: true, skipEmptyLines: true, complete: async function(res) {
+                await db.from('payroll_data').delete().eq('month', uploadMonth);
+                var rows = res.data.map(function(row) {
+                    return { month: uploadMonth,
+                        employee: findField(row, ['employee', 'name', 'employee name', 'employee_name', 'full name', 'full_name']) || '',
+                        role: findField(row, ['role', 'job title', 'job_title', 'jobtitle', 'position', 'title']) || '',
+                        org_unit: findField(row, ['org unit', 'org_unit', 'orgunit', 'organisation', 'organization']) || '',
+                        division: findField(row, ['division', 'dept', 'department', 'div', 'business unit', 'business_unit']) || '',
+                        project: findField(row, ['project', 'project name']) || '',
+                        campaign: findField(row, ['campaign', 'campaign name']) || '',
+                        gross_cost: parseAmount(findField(row, ['gross cost', 'gross_cost', 'cost', 'salary', 'amount', 'total cost', 'total_cost', 'ctc', 'total'])),
+                        raw_data: row };
+                });
+                for (var i = 0; i < rows.length; i += 100) { await db.from('payroll_data').insert(rows.slice(i, i + 100)); }
+                document.getElementById('payrollStatus').textContent = '✅ ' + rows.length + ' rows uploaded for ' + uploadMonth;
+                document.getElementById('payrollStatus').style.color = '#059669';
+                await autoDetectRoles(res.data);
+                showPreview('payrollPreview', res.data);
+                await loadAllData(); renderDashboard();
+            }});
+        }
+        function handleCostUpload(e) {
+            var file = e.target.files[0]; if (!file) return;
+            var uploadMonth = document.getElementById('uploadMonth').value;
+            console.log('[UPLOAD] Cost month locked:', uploadMonth);
+            document.getElementById('costStatus').textContent = '⏳ Uploading for ' + uploadMonth + '...';
+            document.getElementById('costStatus').style.color = '#d97706';
+            Papa.parse(file, { header: true, skipEmptyLines: true, complete: async function(res) {
+                await db.from('cost_data').delete().eq('month', uploadMonth);
+                var rows = res.data.map(function(row) {
+                    return { month: uploadMonth,
+                        category: findField(row, ['category', 'cost category', 'cost_category', 'type']) || '',
+                        vendor: findField(row, ['vendor', 'supplier', 'company']) || '',
+                        description: findField(row, ['description', 'desc', 'detail', 'details']) || '',
+                        amount: parseAmount(findField(row, ['amount', 'cost', 'total', 'value'])),
+                        raw_data: row };
+                });
+                for (var i = 0; i < rows.length; i += 100) { await db.from('cost_data').insert(rows.slice(i, i + 100)); }
+                document.getElementById('costStatus').textContent = '✅ ' + rows.length + ' rows uploaded for ' + uploadMonth;
+                document.getElementById('costStatus').style.color = '#059669';
+                await autoDetectCostCategories(res.data);
+                showPreview('costPreview', res.data);
+                await loadAllData(); renderDashboard();
+            }});
+        }
+
+        function showPreview(id, rows) {
+            var el = document.getElementById(id); el.classList.remove('hidden');
+            if (!rows.length) { el.innerHTML = ''; return; }
+            var cols = Object.keys(rows[0]);
+            el.innerHTML = '<p class="text-xs text-gray-500 mb-2">Preview (first 5 rows):</p>' +
+                '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>' +
+                cols.map(function(k) { return '<th class="px-2 py-1 text-left">' + k + '</th>'; }).join('') +
+                '</tr></thead><tbody>' +
+                rows.slice(0, 5).map(function(row) {
+                    return '<tr>' + cols.map(function(c) { return '<td class="px-2 py-1">' + (row[c] || '') + '</td>'; }).join('') + '</tr>';
+                }).join('') + '</tbody></table></div>';
+        }
+
+        async function autoDetectRoles(payrollData) {
+            var existing = {}; data.payrollAllocations.forEach(function(a) { existing[(a.role + '||' + a.org_unit).toLowerCase()] = true; });
+            var newRows = []; var seen = {};
+            payrollData.forEach(function(row) {
+                var role = findField(row, ['role', 'job title', 'job_title', 'jobtitle', 'position', 'title']);
+                var org = findField(row, ['org unit', 'org_unit', 'orgunit', 'organisation', 'organization', 'org', 'organisational unit', 'organizational unit']);
+                var div = findField(row, ['division', 'dept', 'department', 'div', 'business unit', 'business_unit']);
+                var key = ((role || '') + '||' + (org || '')).toLowerCase();
+                if (role && !existing[key] && !seen[key]) {
+                    seen[key] = true;
+                    var defaults = { local_cc: 0, int_cc: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 };
+                    var orgLower = (org || '').toLowerCase();
+                    if (orgLower.indexOf('international') !== -1) defaults.int_cc = 100;
+                    else if (orgLower.indexOf('local') !== -1) defaults.local_cc = 100;
+                    else if (orgLower.indexOf('retail') !== -1) defaults.retail = 100;
+                    else if (orgLower.indexOf('mvnx') !== -1) defaults.mvnx = 100;
+                    else if (orgLower.indexOf('product') !== -1) defaults.product = 100;
+                    newRows.push({ role: role, org_unit: org || '', division: div || '', rev_gen: false, local_cc: defaults.local_cc, int_cc: defaults.int_cc, retail: defaults.retail, product: defaults.product, mvnx: defaults.mvnx, gumtree: defaults.gumtree });
+                }
+            });
+            if (newRows.length > 0) { await db.from('payroll_allocations').insert(newRows); await loadAllData(); }
+        }
+
+        async function autoDetectCostCategories(costData) {
+            var existing = {}; data.costAllocations.forEach(function(a) { existing[a.category.toLowerCase()] = true; });
+            var newRows = []; var seen = {};
+            costData.forEach(function(row) {
+                var cat = findField(row, ['category', 'cost category', 'cost_category', 'type']);
+                if (cat && !existing[cat.toLowerCase()] && !seen[cat.toLowerCase()]) {
+                    seen[cat.toLowerCase()] = true;
+                    newRows.push({ category: cat, local_cc: 0, int_cc: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 });
+                }
+            });
+            if (newRows.length > 0) { await db.from('cost_allocations').insert(newRows); await loadAllData(); }
+        }
+
+        // ========== PAYROLL ALLOCATIONS ==========
+        function getRoleCounts() {
+            var counts = {};
+            var source = (data.payrollData && data.payrollData.length > 0) ? data.payrollData : (data.allPayrollData || []);
+            source.forEach(function(row) {
+                var key = ((row.role || '') + '||' + (row.org_unit || '')).trim().toLowerCase();
+                if (key) counts[key] = (counts[key] || 0) + 1;
+            });
+            return counts;
+        }
+        function getOrgUnits() { var o = {}; data.payrollAllocations.forEach(function(a) { if (a.org_unit) o[a.org_unit] = true; }); return Object.keys(o).sort(); }
+        function getDivisions() { var d = {}; data.payrollAllocations.forEach(function(a) { if (a.division) d[a.division] = true; }); return Object.keys(d).sort(); }
+
+        // ── Payroll Breakdown (Waterfall Tree) ──
+        var pbExpanded = {};
+
+        function pbExpandAll() {
+            // Build all keys from data
+            var payroll = data.payrollData || [];
+            payroll.forEach(function(row) {
+                var org = row.org_unit || 'Unassigned';
+                var div = row.division || 'Unassigned';
+                pbExpanded['org:' + org] = true;
+                pbExpanded['div:' + org + '|' + div] = true;
+            });
+            renderPayrollBreakdown();
+        }
+        function pbCollapseAll() { pbExpanded = {}; renderPayrollBreakdown(); }
+        function pbToggle(key) { pbExpanded[key] = !pbExpanded[key]; renderPayrollBreakdown(); }
+        
+        window.refreshPayrollBreakdown = async function() {
+            document.getElementById('pbBreakdownBody').innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-8">Reloading...</td></tr>';
+            await loadAllData();
+            renderPayrollBreakdown();
+        };
+        
+        window.refreshPayrollAllocations = async function() {
+            document.getElementById('payrollAllocBody').innerHTML = '<tr><td colspan="13" class="text-center text-gray-400 py-8">Reloading...</td></tr>';
+            await loadAllData();
+            renderPayrollAllocations();
+        };
+
+        function renderPayrollBreakdown() {
+            var allocations = data.payrollAllocations || [];
+            var payroll = data.payrollData || [];
+            
+            // Build costs from payroll grouped by org_unit, division, job title, and employee
+            var orgUnitDivisions = {};
+            var orgUnitCosts = {};
+            var employeesByRole = {};
+            var grandTotals = { localCC: 0, intCC: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0, total: 0 };
+            
+            payroll.forEach(function(emp) {
+                var org = emp.org_unit || 'Unassigned';
+                var div = emp.division || 'Unassigned';
+                var role = emp.role || 'Unassigned';
+                var empCode = (emp.raw_data && emp.raw_data['Employee Code']) || emp.employee_code || '';
+                var cost = parseFloat(emp.gross_cost) || 0;
+                
+                if (!orgUnitDivisions[org]) orgUnitDivisions[org] = {};
+                if (!orgUnitDivisions[org][div]) orgUnitDivisions[org][div] = { cost: 0, roles: {} };
+                
+                if (!orgUnitDivisions[org][div].roles[role]) {
+                    orgUnitDivisions[org][div].roles[role] = { cost: 0, employees: [] };
+                }
+                orgUnitDivisions[org][div].roles[role].cost += cost;
+                orgUnitDivisions[org][div].roles[role].employees.push(emp);
+                orgUnitDivisions[org][div].cost += cost;
+                
+                orgUnitCosts[org] = (orgUnitCosts[org] || 0) + cost;
+                
+                // Track employees by role for lookup
+                var roleKey = role + '||' + org;
+                if (!employeesByRole[roleKey]) {
+                    employeesByRole[roleKey] = [];
+                }
+                employeesByRole[roleKey].push(emp);
+            });
+            
+            // Build allocation lookup by role AND org_unit
+            var allocByRoleOrg = {};
+            allocations.forEach(function(alloc) {
+                var roleKey = (alloc.role || 'Unassigned') + '||' + (alloc.org_unit || 'Unassigned');
+                allocByRoleOrg[roleKey] = alloc;
+            });
+
+            // Build table rows with actual costs - expandable org units
+            var html = '';
+            var orgs = Object.keys(orgUnitCosts).sort();
+            
+            orgs.forEach(function(org) {
+                var totalOrgCost = orgUnitCosts[org];
+                
+                // For org unit total, sum all role allocations for this org
+                var allocsByRole = {};
+                Object.keys(allocByRoleOrg).forEach(function(key) {
+                    if (key.indexOf('||' + org) === key.length - org.length - 2) {
+                        allocsByRole[key] = allocByRoleOrg[key];
+                    }
+                });
+                
+                // If no role-specific allocations, fall back to using employee roles
+                var orgCosts = { localCC: 0, intCC: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0, total: 0 };
+                
+                Object.keys(employeesByRole).forEach(function(roleKey) {
+                    if (roleKey.indexOf('||' + org) === roleKey.length - org.length - 2) {
+                        var alloc = allocByRoleOrg[roleKey];
+                        var employees = employeesByRole[roleKey];
+                        var roleTotal = 0;
+                        employees.forEach(function(emp) { roleTotal += parseFloat(emp.gross_cost) || 0; });
+                        
+                        if (alloc) {
+                            var localCCPct = parseFloat(alloc.local_cc) || 0;
+                            var intCCPct = parseFloat(alloc.int_cc) || 0;
+                            var retailPct = parseFloat(alloc.retail) || 0;
+                            var productPct = parseFloat(alloc.product) || 0;
+                            var mvnxPct = parseFloat(alloc.mvnx) || 0;
+                            var gumtreePct = parseFloat(alloc.gumtree) || 0;
+                            
+                            orgCosts.localCC += roleTotal * (localCCPct / 100);
+                            orgCosts.intCC += roleTotal * (intCCPct / 100);
+                            orgCosts.retail += roleTotal * (retailPct / 100);
+                            orgCosts.product += roleTotal * (productPct / 100);
+                            orgCosts.mvnx += roleTotal * (mvnxPct / 100);
+                            orgCosts.gumtree += roleTotal * (gumtreePct / 100);
+                            orgCosts.total += roleTotal;
+                        } else {
+                            // No allocation found, count as unallocated
+                            orgCosts.total += roleTotal;
+                        }
+                    }
+                });
+                
+                // Add to grand totals
+                grandTotals.localCC += orgCosts.localCC;
+                grandTotals.intCC += orgCosts.intCC;
+                grandTotals.retail += orgCosts.retail;
+                grandTotals.product += orgCosts.product;
+                grandTotals.mvnx += orgCosts.mvnx;
+                grandTotals.gumtree += orgCosts.gumtree;
+                grandTotals.total += orgCosts.total;
+                
+                // Org unit row (clickable to expand)
+                var pbKey = 'pb:' + org;
+                var isOpen = pbExpanded[pbKey];
+                html += '<tr onclick="pbToggle(\'' + pbKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:' + (isOpen ? '#f0fdf4' : '#fff') + ';" onmouseover="this.style.background=\'#f9fafb\'" onmouseout="this.style.background=\'' + (isOpen ? '#f0fdf4' : '#fff') + '\'">' +
+                    '<td class="font-semibold"><span style="margin-right:8px;">' + (isOpen ? '▼' : '▶') + '</span>' + esc(org) + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.localCC).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.intCC).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.retail).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.product).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.mvnx).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right">R ' + Math.round(orgCosts.gumtree).toLocaleString('en-ZA') + '</td>' +
+                    '<td class="text-right font-semibold">R ' + Math.round(orgCosts.localCC + orgCosts.intCC + orgCosts.retail + orgCosts.product + orgCosts.mvnx + orgCosts.gumtree).toLocaleString('en-ZA') + '</td>' +
+                    '</tr>';
+                
+                // Division rows (hidden by default)
+                if (isOpen) {
+                    var divs = Object.keys(orgUnitDivisions[org]).sort();
+                    divs.forEach(function(div) {
+                        var divData = orgUnitDivisions[org][div];
+                        var divCost = divData.cost;
+                        var divCosts = { localCC: 0, intCC: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 };
+                        var divKey = 'div:' + org + '|' + div;
+                        var divOpen = pbExpanded[divKey];
+                        
+                        // Calculate costs for all roles in division
+                        Object.keys(divData.roles).forEach(function(role) {
+                            var roleData = divData.roles[role];
+                            var roleKey = role + '||' + org;
+                            var alloc = allocByRoleOrg[roleKey];
+                            
+                            if (alloc) {
+                                var localCCPct = parseFloat(alloc.local_cc) || 0;
+                                var intCCPct = parseFloat(alloc.int_cc) || 0;
+                                var retailPct = parseFloat(alloc.retail) || 0;
+                                var productPct = parseFloat(alloc.product) || 0;
+                                var mvnxPct = parseFloat(alloc.mvnx) || 0;
+                                var gumtreePct = parseFloat(alloc.gumtree) || 0;
+                                
+                                divCosts.localCC += roleData.cost * (localCCPct / 100);
+                                divCosts.intCC += roleData.cost * (intCCPct / 100);
+                                divCosts.retail += roleData.cost * (retailPct / 100);
+                                divCosts.product += roleData.cost * (productPct / 100);
+                                divCosts.mvnx += roleData.cost * (mvnxPct / 100);
+                                divCosts.gumtree += roleData.cost * (gumtreePct / 100);
+                            }
+                        });
+                        
+                        var divTotal = divCosts.localCC + divCosts.intCC + divCosts.retail + divCosts.product + divCosts.mvnx + divCosts.gumtree;
+                        
+                        // Division row (clickable)
+                        html += '<tr onclick="pbToggle(\'' + divKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:#fafafa;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'#fafafa\'">' +
+                            '<td style="padding-left:48px;color:#6b7280;"><span style="margin-right:8px;">' + (divOpen ? '▼' : '▶') + '</span>' + esc(div) + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.localCC).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.intCC).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.retail).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.product).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.mvnx).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divCosts.gumtree).toLocaleString('en-ZA') + '</td>' +
+                            '<td class="text-right" style="color:#6b7280;">R ' + Math.round(divTotal).toLocaleString('en-ZA') + '</td>' +
+                            '</tr>';
+                        
+                        // Role rows (shown when division expanded)
+                        if (divOpen) {
+                            var roles = Object.keys(divData.roles).sort();
+                            roles.forEach(function(role) {
+                                var roleData = divData.roles[role];
+                                var roleKey = 'role:' + org + '|' + div + '|' + role;
+                                var roleOpen = pbExpanded[roleKey];
+                                var allocKey = role + '||' + org;
+                                var alloc = allocByRoleOrg[allocKey];
+                                
+                                var roleCosts = { localCC: 0, intCC: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 };
+                                if (alloc) {
+                                    var localCCPct = parseFloat(alloc.local_cc) || 0;
+                                    var intCCPct = parseFloat(alloc.int_cc) || 0;
+                                    var retailPct = parseFloat(alloc.retail) || 0;
+                                    var productPct = parseFloat(alloc.product) || 0;
+                                    var mvnxPct = parseFloat(alloc.mvnx) || 0;
+                                    var gumtreePct = parseFloat(alloc.gumtree) || 0;
+                                    
+                                    roleCosts.localCC = roleData.cost * (localCCPct / 100);
+                                    roleCosts.intCC = roleData.cost * (intCCPct / 100);
+                                    roleCosts.retail = roleData.cost * (retailPct / 100);
+                                    roleCosts.product = roleData.cost * (productPct / 100);
+                                    roleCosts.mvnx = roleData.cost * (mvnxPct / 100);
+                                    roleCosts.gumtree = roleData.cost * (gumtreePct / 100);
+                                }
+                                
+                                var roleTotal = roleCosts.localCC + roleCosts.intCC + roleCosts.retail + roleCosts.product + roleCosts.mvnx + roleCosts.gumtree;
+                                
+                                // Role row (clickable)
+                                html += '<tr onclick="pbToggle(\'' + roleKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:#f9fafb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'#f9fafb\'">' +
+                                    '<td style="padding-left:80px;color:#9ca3af;font-size:0.875rem;"><span style="margin-right:8px;">' + (roleOpen ? '▼' : '▶') + '</span>' + esc(role) + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.localCC).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.intCC).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.retail).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.product).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.mvnx).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.gumtree).toLocaleString('en-ZA') + '</td>' +
+                                    '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleTotal).toLocaleString('en-ZA') + '</td>' +
+                                    '</tr>';
+                                
+                                // Employee rows (shown when role expanded)
+                                if (roleOpen) {
+                                    var employees = roleData.employees.sort(function(a, b) {
+                                        var codeA = (a.raw_data && a.raw_data['Employee Code']) || a.employee_code || '';
+                                        var codeB = (b.raw_data && b.raw_data['Employee Code']) || b.employee_code || '';
+                                        return codeA.localeCompare(codeB);
+                                    });
+                                    
+                                    employees.forEach(function(emp) {
+                                        var empCosts = { localCC: 0, intCC: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 };
+                                        var empCost = parseFloat(emp.gross_cost) || 0;
+                                        
+                                        if (alloc) {
+                                            var localCCPct = parseFloat(alloc.local_cc) || 0;
+                                            var intCCPct = parseFloat(alloc.int_cc) || 0;
+                                            var retailPct = parseFloat(alloc.retail) || 0;
+                                            var productPct = parseFloat(alloc.product) || 0;
+                                            var mvnxPct = parseFloat(alloc.mvnx) || 0;
+                                            var gumtreePct = parseFloat(alloc.gumtree) || 0;
+                                            
+                                            empCosts.localCC = empCost * (localCCPct / 100);
+                                            empCosts.intCC = empCost * (intCCPct / 100);
+                                            empCosts.retail = empCost * (retailPct / 100);
+                                            empCosts.product = empCost * (productPct / 100);
+                                            empCosts.mvnx = empCost * (mvnxPct / 100);
+                                            empCosts.gumtree = empCost * (gumtreePct / 100);
+                                        }
+                                        
+                                        var empTotal = empCosts.localCC + empCosts.intCC + empCosts.retail + empCosts.product + empCosts.mvnx + empCosts.gumtree;
+                                        var empCode = (emp.raw_data && emp.raw_data['Employee Code']) || emp.employee_code || 'N/A';
+                                        
+                                        // Look up employee name from employee_master
+                                        var empMaster = (data.employeeMaster || []).find(function(em) {
+                                            return em.employee_code === empCode;
+                                        });
+                                        var empName = empMaster ? ((empMaster.surname || '') + ', ' + (empMaster.name || '')) : ('Code: ' + empCode);
+                                        
+                                        html += '<tr style="background:#fff;">' +
+                                            '<td style="padding-left:112px;color:#d1d5db;font-size:0.875rem;">● ' + esc(empName) + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.localCC).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.intCC).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.retail).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.product).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.mvnx).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empCosts.gumtree).toLocaleString('en-ZA') + '</td>' +
+                                            '<td class="text-right" style="color:#d1d5db;font-size:0.875rem;">R ' + Math.round(empTotal).toLocaleString('en-ZA') + '</td>' +
+                                            '</tr>';
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            
+            // Add grand total row
+            html += '<tr style="background:#f3f4f6;font-weight:bold;border-top:2px solid #e5e7eb;">' +
+                '<td class="font-semibold">TOTAL</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.localCC).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.intCC).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.retail).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.product).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.mvnx).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.gumtree).toLocaleString('en-ZA') + '</td>' +
+                '<td class="text-right">R ' + Math.round(grandTotals.total).toLocaleString('en-ZA') + '</td>' +
+                '</tr>';
+            
+            document.getElementById('pbBreakdownBody').innerHTML = html || '<tr><td colspan="8" class="text-center text-gray-400 py-8">No data found for selected month</td></tr>';
+            
+            // Update month selector
+            var monthSel = document.getElementById('pbMonthSelect');
+            if (monthSel && monthSel.innerHTML === '') {
+                var sorted = (data.availableMonths || []).sort().reverse();
+                monthSel.innerHTML = sorted.map(function(m) {
+                    var d = new Date(m + '-01');
+                    var label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                    return '<option value="' + m + '"' + (m === currentMonth ? ' selected' : '') + '>' + label + '</option>';
+                }).join('');
+            }
+        }
+
+        function renderPayrollAllocations() {
+            var body = document.getElementById('payrollAllocBody');
+            var roleCounts = getRoleCounts();
+            var orgSelect = document.getElementById('orgUnitFilter');
+            var orgVal = orgSelect.value;
+            orgSelect.innerHTML = '<option value="">All Org Units</option>' + getOrgUnits().map(function(o) { return '<option value="' + esc(o) + '"' + (o === orgVal ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+            var divSelect = document.getElementById('divisionFilter');
+            var divVal = divSelect.value;
+            divSelect.innerHTML = '<option value="">All Divisions</option>' + getDivisions().map(function(d) { return '<option value="' + esc(d) + '"' + (d === divVal ? ' selected' : '') + '>' + d + '</option>'; }).join('');
+
+            var allocs = data.payrollAllocations;
+            if (orgVal) allocs = allocs.filter(function(a) { return a.org_unit === orgVal; });
+            if (divVal) allocs = allocs.filter(function(a) { return a.division === divVal; });
+
+            var totalRoles = allocs.length, totalPeople = 0, revGenRoles = 0, revGenPeople = 0, totalPayrollRand = 0;
+            allocs.forEach(function(a) { var c = roleCounts[(a.role + '||' + a.org_unit).toLowerCase()] || 0; totalPeople += c; if (a.rev_gen) { revGenRoles++; revGenPeople += c; } });
+            (data.payrollData || []).forEach(function(row) { totalPayrollRand += parseFloat(row.gross_cost) || 0; });
+
+            document.getElementById('allocSummaryCards').innerHTML =
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Payroll</p><p class="text-xl font-bold text-teal-600 mt-1">R ' + Math.round(totalPayrollRand).toLocaleString('en-ZA') + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Roles / People</p><p class="text-xl font-bold text-gray-900 mt-1">' + totalRoles + ' <span class="text-gray-400 text-sm font-normal">/ ' + totalPeople + '</span></p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Rev Gen Roles</p><p class="text-xl font-bold text-teal-600 mt-1">' + revGenRoles + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Rev Gen People</p><p class="text-xl font-bold text-teal-600 mt-1">' + revGenPeople + '</p></div>';
+
+            if (!allocs.length) {
+                body.innerHTML = '<tr><td colspan="13" class="px-4 py-8 text-center text-gray-400 text-sm">' +
+                    ((orgVal || divVal) ? 'No allocations matching filter.' : 'No allocations. Upload payroll or add manually.') + '</td></tr>';
+                return;
+            }
+
+            var groups = {};
+            allocs.forEach(function(a) { var key = a.org_unit || 'Unassigned'; if (!groups[key]) groups[key] = []; groups[key].push(a); });
+            var html = '';
+
+            Object.keys(groups).sort().forEach(function(div) {
+                var groupAllocs = groups[div];
+                var groupPeople = 0, groupRevGen = 0;
+                groupAllocs.forEach(function(a) { var c = roleCounts[(a.role + '||' + a.org_unit).toLowerCase()] || 0; groupPeople += c; if (a.rev_gen) groupRevGen += c; });
+
+                html += '<tr class="group-header"><td colspan="13" class="px-4 py-2.5">' +
+                    '<div class="flex items-center gap-3">' +
+                        '<span class="text-xs font-bold text-gray-700">' + div + '</span>' +
+                        '<span class="badge badge-gray">' + groupAllocs.length + ' roles</span>' +
+                        '<span class="badge badge-blue">' + groupPeople + ' people</span>' +
+                        '<span class="badge badge-green">' + groupRevGen + ' rev-gen</span>' +
+                    '</div></td></tr>';
+
+                groupAllocs.forEach(function(a) {
+                    var count = roleCounts[(a.role + '||' + a.org_unit).toLowerCase()] || 0;
+                    var total = BUCKETS.reduce(function(s, b) { return s + (parseFloat(a[b]) || 0); }, 0);
+                    var isExpanded = expandedPayrollRoles[a.id];
+                    var people = getEmployeesForRole(a.role, a.org_unit);
+                    var hasOverrides = people.some(function(p) { return BUCKETS.some(function(b) { return p[b] !== null && p[b] !== undefined; }); });
+
+                    var totalBadge = Math.abs(total - 100) < 0.01 ? 'badge-green' : (total > 0 ? 'badge-red' : 'badge-gray');
+
+                    html += '<tr>' +
+                        '<td class="pl-6 pr-4"><div class="flex items-center gap-2">' +
+                            (count > 0 ? '<button onclick="togglePayrollRole(' + a.id + ')" class="text-gray-400 hover:text-gray-700 text-xs transition">' + (isExpanded ? '▾' : '▸') + '</button>' : '<span class="text-xs text-gray-300 w-3">·</span>') +
+                            '<input type="text" value="' + esc(a.role) + '" onchange="upPA(' + a.id + ',\'role\',this.value)" class="input-field border-0 bg-transparent px-0 py-0 text-sm font-medium w-full shadow-none" style="box-shadow:none" />' +
+                            (hasOverrides ? '<span class="text-xs text-amber-500" title="Has individual overrides">⚠</span>' : '') +
+                        '</div></td>' +
+                        '<td><input type="text" value="' + esc(a.org_unit) + '" onchange="upPA(' + a.id + ',\'org_unit\',this.value)" class="input-field border-0 bg-transparent px-0 py-0 text-sm w-full" style="box-shadow:none" /></td>' +
+                        '<td><input type="text" value="' + esc(a.division || '') + '" onchange="upPA(' + a.id + ',\'division\',this.value)" class="input-field border-0 bg-transparent px-0 py-0 text-sm text-gray-500 w-full" style="box-shadow:none" /></td>' +
+                        '<td class="text-center"><span class="badge ' + (count > 0 ? 'badge-blue' : 'badge-gray') + '">' + count + '</span></td>' +
+                        '<td class="text-center"><input type="checkbox" ' + (a.rev_gen ? 'checked' : '') + ' onchange="upPA(' + a.id + ',\'rev_gen\',this.checked)" class="checkbox-styled" /></td>' +
+                        BUCKETS.map(function(b) {
+                            return '<td class="text-center"><input type="number" value="' + (a[b] || 0) + '" onchange="upPA(' + a.id + ',\'' + b + '\',parseFloat(this.value)||0)" class="input-field input-sm" /></td>';
+                        }).join('') +
+                        '<td class="text-center"><span class="badge ' + totalBadge + '">' + total.toFixed(0) + '%</span> <button onclick="applyCC(' + a.id + ')" class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold ml-1" title="50% Local / 50% Intl">CC</button><button onclick="applySX(' + a.id + ')" class="text-[10px] px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 hover:bg-teal-200 font-semibold ml-1" title="20/20/20/20/10/10 split">SX</button></td>' +
+                        '<td class="text-center"><button onclick="rmPA(' + a.id + ')" class="text-gray-300 hover:text-red-500 text-sm transition">✕</button></td></tr>';
+
+                    if (isExpanded && people.length > 0) {
+                        people.forEach(function(emp) {
+                            var hasOvr = BUCKETS.some(function(b) { return emp[b] !== null && emp[b] !== undefined; });
+                            var empTotal = hasOvr ? BUCKETS.reduce(function(s, b) { return s + (parseFloat(emp[b]) || 0); }, 0) : total;
+                            var empBadge = hasOvr ? (Math.abs(empTotal - 100) < 0.01 ? 'badge-green' : 'badge-red') : 'badge-gray';
+                            html += '<tr style="background:#fafbfc">' +
+                                '<td class="pl-14 pr-4"><span class="text-xs text-gray-600">' + esc(emp.employee || '') + '</span><span class="text-xs text-gray-400 ml-2">R ' + Math.round(parseFloat(emp.gross_cost) || 0).toLocaleString('en-ZA') + '</span></td>' +
+                                '<td class="text-xs text-gray-400">' + esc(emp.org_unit || '') + '</td>' +
+                                '<td class="text-xs text-gray-400">' + esc(emp.division || '') + '</td>' +
+                                '<td></td><td></td>' +
+                                BUCKETS.map(function(b) {
+                                    var val = (emp[b] !== null && emp[b] !== undefined) ? emp[b] : '';
+                                    return '<td class="text-center"><input type="number" value="' + val + '" placeholder="—" onchange="upPayrollEmp(' + emp.id + ',\'' + b + '\',this.value)" class="input-field input-sm text-xs ' + (val !== '' ? 'border-amber-300 text-amber-700' : '') + '" /></td>';
+                                }).join('') +
+                                '<td class="text-center"><span class="badge ' + empBadge + '">' + (hasOvr ? empTotal.toFixed(0) + '%' : 'role') + '</span></td>' +
+                                '<td class="text-center">' + (hasOvr ? '<button onclick="clearPayrollEmpOverride(' + emp.id + ')" class="text-xs text-gray-400 hover:text-red-500" title="Clear override">↩</button>' : '') + '</td></tr>';
+                        });
+                    }
+                });
+            });
+            body.innerHTML = html;
+        }
+
+        var expandedPayrollRoles = {};
+        window.togglePayrollRole = function(id) { expandedPayrollRoles[id] = !expandedPayrollRoles[id]; renderPayrollAllocations(); };
+        function getEmployeesForRole(role, orgUnit) {
+            return (data.payrollData || []).filter(function(r) { return r.role === role && r.org_unit === orgUnit; }).sort(function(a, b) { return (a.employee || '').localeCompare(b.employee || ''); });
+        }
+        window.upPayrollEmp = async function(id, field, value) {
+            var update = {}; update[field] = (value === '' || value === null) ? null : parseFloat(value) || 0;
+            await db.from('payroll_data').update(update).eq('id', id);
+            var item = (data.payrollData || []).find(function(r) { return r.id === id; }); if (item) item[field] = update[field];
+            renderPayrollAllocations();
+        };
+        window.clearPayrollEmpOverride = async function(id) {
+            var update = {}; BUCKETS.forEach(function(b) { update[b] = null; });
+            await db.from('payroll_data').update(update).eq('id', id);
+            var item = (data.payrollData || []).find(function(r) { return r.id === id; }); if (item) BUCKETS.forEach(function(b) { item[b] = null; });
+            renderPayrollAllocations();
+        };
+        window.pbToggle = pbToggle;
+        window.pbExpandAll = pbExpandAll;
+        window.pbCollapseAll = pbCollapseAll;
+        window.renderPayrollBreakdown = renderPayrollBreakdown;
+
+        window.upPA = async function(id, f, v) { var u = {}; u[f] = v; await db.from('payroll_allocations').update(u).eq('id', id); await loadAllData(); renderPayrollAllocations(); };
+        window.applyCC = async function(id) { await db.from('payroll_allocations').update({ local_cc: 50, int_cc: 50, retail: 0, product: 0, mvnx: 0, gumtree: 0 }).eq('id', id); await loadAllData(); renderPayrollAllocations(); };
+        window.applySX = async function(id) { await db.from('payroll_allocations').update({ local_cc: 20, int_cc: 20, retail: 20, product: 20, mvnx: 10, gumtree: 10 }).eq('id', id); await loadAllData(); renderPayrollAllocations(); };
+        window.rmPA = async function(id) { if (!confirm('Remove this role?')) return; await db.from('payroll_allocations').delete().eq('id', id); await loadAllData(); renderPayrollAllocations(); };
+        window.addPayrollAllocation = async function() { await db.from('payroll_allocations').insert({ role: '', org_unit: '', rev_gen: false, local_cc: 0, int_cc: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 }); await loadAllData(); renderPayrollAllocations(); };
+
+        // ========== COST ALLOCATIONS (VENDOR LEVEL) ==========
+        var expandedCats = {};
+        var allCostExpanded = false;
+        window.toggleCostDetail = function(cat) { expandedCats[cat] = !expandedCats[cat]; renderCostAllocations(); };
+        window.toggleAllCostDetails = function() {
+            allCostExpanded = !allCostExpanded;
+            var cats = {}; (data.costData || []).forEach(function(r) { if (r.category) cats[r.category] = true; });
+            Object.keys(cats).forEach(function(c) { expandedCats[c] = allCostExpanded; });
+            document.getElementById('toggleCostBtn').textContent = allCostExpanded ? 'Collapse All' : 'Expand All';
+            renderCostAllocations();
+        };
+        window.upCostItem = async function(id, field, value) {
+            var u = {}; u[field] = value; await db.from('cost_data').update(u).eq('id', id);
+            var item = data.costData.find(function(r) { return r.id === id; }); if (item) item[field] = value;
+            renderCostAllocations();
+        };
+        window.applyToCategory = async function(catName) {
+            var catItems = (data.costData || []).filter(function(r) { return r.category === catName; });
+            var source = catItems.find(function(r) { return BUCKETS.some(function(b) { return (parseFloat(r[b]) || 0) > 0; }); });
+            if (!source) { alert('Set allocation on at least one vendor first'); return; }
+            var updates = {}; BUCKETS.forEach(function(b) { updates[b] = parseFloat(source[b]) || 0; });
+            for (var i = 0; i < catItems.length; i++) {
+                await db.from('cost_data').update(updates).eq('id', catItems[i].id);
+                BUCKETS.forEach(function(b) { catItems[i][b] = updates[b]; });
+            }
+            renderCostAllocations();
+        };
+
+        function renderCostAllocations() {
+            var body = document.getElementById('costAllocBody');
+            var costItems = data.costData || [];
+            var catFilter = document.getElementById('costCatFilter').value;
+            var catMap = {};
+            costItems.forEach(function(r) { var cat = r.category || 'Uncategorised'; if (!catMap[cat]) catMap[cat] = []; catMap[cat].push(r); });
+            var catKeys = Object.keys(catMap).sort();
+            var filterEl = document.getElementById('costCatFilter');
+            var curFilter = filterEl.value;
+            filterEl.innerHTML = '<option value="">All Categories (' + catKeys.length + ')</option>' +
+                catKeys.map(function(c) { return '<option value="' + esc(c) + '"' + (c === curFilter ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+            if (catFilter) { var f = {}; f[catFilter] = catMap[catFilter] || []; catMap = f; catKeys = Object.keys(catMap); }
+
+            var totalAmount = 0, totalItems = 0, allocatedItems = 0;
+            costItems.forEach(function(r) { totalAmount += parseFloat(r.amount) || 0; totalItems++; var t = BUCKETS.reduce(function(s, b) { return s + (parseFloat(r[b]) || 0); }, 0); if (Math.abs(t - 100) < 0.01) allocatedItems++; });
+
+            document.getElementById('costAllocSummary').innerHTML =
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</p><p class="text-xl font-bold text-gray-900 mt-1">' + catKeys.length + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</p><p class="text-xl font-bold text-gray-900 mt-1">R ' + Math.round(totalAmount).toLocaleString('en-ZA') + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Vendors</p><p class="text-xl font-bold text-gray-900 mt-1">' + totalItems + '</p></div>' +
+                '<div class="stat-card"><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Allocated</p><p class="text-xl font-bold mt-1 ' + (allocatedItems === totalItems ? 'text-teal-600' : 'text-amber-600') + '">' + allocatedItems + ' / ' + totalItems + '</p></div>';
+
+            if (!costItems.length) { body.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-400 text-sm">No cost data. Upload a cost file first.</td></tr>'; return; }
+
+            var html = '';
+            catKeys.forEach(function(cat) {
+                var items = catMap[cat];
+                var catTotal = 0, catAllocated = 0;
+                items.forEach(function(r) { catTotal += parseFloat(r.amount) || 0; var t = BUCKETS.reduce(function(s, b) { return s + (parseFloat(r[b]) || 0); }, 0); if (Math.abs(t - 100) < 0.01) catAllocated++; });
+                var isExpanded = expandedCats[cat];
+                var catBucketAmounts = {}; BUCKETS.forEach(function(b) { catBucketAmounts[b] = 0; });
+                items.forEach(function(r) { var amt = parseFloat(r.amount) || 0; BUCKETS.forEach(function(b) { catBucketAmounts[b] += amt * ((parseFloat(r[b]) || 0) / 100); }); });
+                var safeCat = esc(cat).replace(/'/g, "\\'");
+                var allocBadge = catAllocated === items.length ? 'badge-green' : 'badge-amber';
+
+                html += '<tr class="group-header" onclick="toggleCostDetail(\'' + safeCat + '\')">' +
+                    '<td class="px-4 py-2.5"><div class="flex items-center gap-2">' +
+                        '<span class="text-xs text-gray-400">' + (isExpanded ? '▾' : '▸') + '</span>' +
+                        '<span class="text-sm font-semibold text-gray-800">' + esc(cat) + '</span>' +
+                        '<span class="badge badge-gray">' + items.length + '</span>' +
+                        '<span class="badge ' + allocBadge + '">' + catAllocated + '/' + items.length + '</span>' +
+                    '</div></td>' +
+                    '<td class="text-right font-medium text-sm text-gray-700">R ' + Math.round(catTotal).toLocaleString('en-ZA') + '</td>' +
+                    BUCKETS.map(function(b) { var a = catBucketAmounts[b]; return '<td class="text-center text-xs ' + (a > 0 ? 'text-gray-600' : 'text-gray-300') + '">R ' + Math.round(a).toLocaleString('en-ZA') + '</td>'; }).join('') +
+                    '<td class="text-center"><button onclick="event.stopPropagation();applyToCategory(\'' + safeCat + '\')" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">Apply All</button></td><td></td></tr>';
+
+                if (isExpanded) {
+                    items.forEach(function(item) {
+                        var total = BUCKETS.reduce(function(s, b) { return s + (parseFloat(item[b]) || 0); }, 0);
+                        var totalBadge = Math.abs(total - 100) < 0.01 ? 'badge-green' : (total > 0 ? 'badge-red' : 'badge-gray');
+                        html += '<tr style="background:#fafbfc">' +
+                            '<td class="pl-10 pr-4"><p class="text-sm text-gray-700">' + esc(item.vendor || '') + '</p><p class="text-xs text-gray-400">' + esc(item.description || '') + '</p></td>' +
+                            '<td class="text-right text-sm text-gray-600">R ' + Math.round(parseFloat(item.amount) || 0).toLocaleString('en-ZA') + '</td>' +
+                            BUCKETS.map(function(b) { return '<td class="text-center"><input type="number" value="' + (item[b] || 0) + '" onchange="upCostItem(' + item.id + ',\'' + b + '\',parseFloat(this.value)||0)" class="input-field input-sm text-xs" /></td>'; }).join('') +
+                            '<td class="text-center"><span class="badge ' + totalBadge + '">' + total.toFixed(0) + '%</span></td><td></td></tr>';
+                    });
+                }
+            });
+            body.innerHTML = html;
+        }
+
+        window.upCA = async function(id, f, v) { var u = {}; u[f] = v; await db.from('cost_allocations').update(u).eq('id', id); await loadAllData(); renderCostAllocations(); };
+        window.rmCA = async function(id) { if (!confirm('Remove?')) return; await db.from('cost_allocations').delete().eq('id', id); await loadAllData(); renderCostAllocations(); };
+        window.addCostAllocation = async function() { await db.from('cost_allocations').insert({ category: '', local_cc: 0, int_cc: 0, retail: 0, product: 0, mvnx: 0, gumtree: 0 }); await loadAllData(); renderCostAllocations(); };
+
+        // ========== VIEW DATA ==========
+        var currentDataTab = 'payroll';
+        function showDataTab(tab) {
+            currentDataTab = tab;
+            document.getElementById('tab-payroll').className = 'btn ' + (tab === 'payroll' ? 'btn-primary' : 'btn-secondary');
+            document.getElementById('tab-costs').className = 'btn ' + (tab === 'costs' ? 'btn-primary' : 'btn-secondary');
+            var rows = tab === 'payroll' ? data.payrollData : data.costData;
+            var el = document.getElementById('dataTable');
+            if (!rows || !rows.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No data for this month.</p>'; return; }
+            var cols = Object.keys(rows[0]);
+            el.innerHTML = '<table class="w-full text-xs"><thead><tr>' +
+                cols.map(function(c) { return '<th class="text-left sticky top-0">' + c + '</th>'; }).join('') +
+                '</tr></thead><tbody>' + rows.map(function(row) {
+                    return '<tr>' + cols.map(function(c) { return '<td>' + (row[c] || '') + '</td>'; }).join('') + '</tr>';
+                }).join('') + '</tbody></table>';
+        }
+
+        function esc(s) { return String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+        // Drag-drop
+        ['payrollZone', 'costZone', 'emZone', 'emAddZone', 'pmZone'].forEach(function(id) {
+            var el = document.getElementById(id); if (!el) return;
+            el.addEventListener('dragover', function(e) { e.preventDefault(); el.classList.add('dragover'); });
+            el.addEventListener('dragleave', function() { el.classList.remove('dragover'); });
+            el.addEventListener('drop', function(e) {
+                e.preventDefault(); el.classList.remove('dragover');
+                var file = e.dataTransfer.files[0]; if (!file) return;
+                var input = el.querySelector('input[type="file"]');
+                var dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+                input.dispatchEvent(new Event('change'));
+            });
+        });
+
+        // User display
+        function getLoggedInUser() {
+            var match = document.cookie.match(/ic_user=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : 'User';
+        }
+        (function() {
+            var user = getLoggedInUser();
+            document.getElementById('userName').textContent = user;
+            document.getElementById('userAvatar').textContent = user.charAt(0).toUpperCase();
+        })();
+
+        // Init
+        initMonthSelect();
+        (async function() { await loadAllData(); renderDashboard(); })();
+    </script>
+</body>
+</html>
