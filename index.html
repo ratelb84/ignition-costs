@@ -2782,11 +2782,15 @@
             
             console.log('HTML length:', html.length, 'Org count:', Object.keys(structure).length);
             
-            // Test: output simple HTML first
-            if (html.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#dc2626;"><strong>ERROR: No HTML generated. Structure orgs: ' + Object.keys(structure).length + '</strong></td></tr>';
-            } else {
-                body.innerHTML = html;
+            // Test: Check if body element exists and is visible
+            console.log('Body element:', body, 'Parent display:', window.getComputedStyle(body.parentElement).display);
+            
+            // Simple test - just show some text
+            body.innerHTML = '<tr><td colspan="5" style="padding:20px;background:yellow;"><strong>TEST: ' + Object.keys(structure).length + ' orgs found. HTML length: ' + html.length + '</strong></td></tr>';
+            
+            if (html.length > 0) {
+                // Now append the real data
+                body.innerHTML += html;
             }
         }
         
