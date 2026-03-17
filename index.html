@@ -2731,6 +2731,9 @@
             var html = '';
             var licenceOptions = ['Microsoft E3', 'Microsoft F1 (2GB)', 'Microsoft F1 (50GB)'];
             
+            console.log('Structure keys:', Object.keys(structure).length);
+            console.log('Licences loaded:', Object.keys(licences).length);
+            
             Object.keys(structure).sort().forEach(function(org) {
                 var orgCount = 0;
                 Object.keys(structure[org]).forEach(function(div) {
@@ -2785,6 +2788,7 @@
                 });
             });
             
+            console.log('Generated HTML length:', html.length, 'Structure orgs:', Object.keys(structure).length);
             body.innerHTML = html || '<tr><td colspan="5" class="text-center text-gray-400 py-6">No roles found</td></tr>';
         }
         
