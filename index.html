@@ -2681,12 +2681,21 @@
         // ==================== LICENCE ALLOCATION ====================
         async function renderLicenceAllocation() {
             var body = document.getElementById('licenceAllocBody');
+            
+            if (!body) {
+                console.error('licenceAllocBody element not found!');
+                return;
+            }
+            
             var payroll = data.payrollData || [];
             
-            console.log('Rendering licence allocation. Payroll records:', payroll.length, 'Data:', data);
+            console.log('=== LICENCE ALLOCATION DEBUG ===');
+            console.log('Current month:', currentMonth);
+            console.log('Payroll records:', payroll.length);
+            console.log('Data object keys:', Object.keys(data));
             
             if (!payroll || payroll.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">No payroll data loaded. Please check the month selector.</td></tr>';
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6"><strong>Debug Info:</strong><br>currentMonth: ' + currentMonth + '<br>payroll length: ' + payroll.length + '<br>Available months: ' + (data.availableMonths ? data.availableMonths.join(', ') : 'none') + '</td></tr>';
                 return;
             }
             
