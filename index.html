@@ -112,6 +112,10 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
                     Role Allocation Master
                 </div>
+                <div onclick="showPage('licence-allocation')" class="nav-item" id="nav-licence-allocation">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Licence Allocation
+                </div>
                 <div onclick="showPage('payroll-mgmt')" class="nav-item" id="nav-payroll-mgmt">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
                     Payroll Files
@@ -615,6 +619,32 @@
                 </div>
             </div>
 
+            <!-- ==================== LICENCE ALLOCATION ==================== -->
+            <div id="page-licence-allocation" class="p-8 hidden">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Licence Allocation</h1>
+                        <p class="text-sm text-gray-500 mt-1">Assign Microsoft licences to roles by organization</p>
+                    </div>
+                    <button onclick="refreshLicenceAllocation()" class="btn btn-secondary text-xs" title="Reload data from database">⟳ Refresh</button>
+                </div>
+
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Org Unit</th>
+                                <th class="text-center">Employees</th>
+                                <th class="text-left">Division / Role</th>
+                                <th class="text-center">Licence Type</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="licenceAllocBody"><tr><td colspan="5" class="text-center text-gray-400 py-8">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- ==================== VIEW DATA ==================== -->
             <div id="page-data" class="p-8 hidden">
                 <div class="mb-6">
@@ -713,7 +743,7 @@
         function fmtR(n) { return 'R ' + Math.round(n).toLocaleString('en-ZA'); }
 
         // ========== NAVIGATION ==========
-        var PAGE_LABELS = { 'dashboard': 'Cost Per Agent', 'cpa-local': 'Cost Per Agent — Local', 'cpa-intl': 'Cost Per Agent — International', 'employee-master': 'Employee Master File', 'payroll-mgmt': 'Payroll File Management', 'upload': 'Upload Data', 'payroll-breakdown': 'Payroll Breakdown', 'payroll-alloc': 'Payroll Allocations', 'cost-alloc': 'Cost Allocations', 'data': 'View Data' };
+        var PAGE_LABELS = { 'dashboard': 'Cost Per Agent', 'cpa-local': 'Cost Per Agent — Local', 'cpa-intl': 'Cost Per Agent — International', 'employee-master': 'Employee Master File', 'payroll-mgmt': 'Payroll File Management', 'upload': 'Upload Data', 'payroll-breakdown': 'Payroll Breakdown', 'payroll-alloc': 'Payroll Allocations', 'cost-alloc': 'Cost Allocations', 'licence-allocation': 'Licence Allocation', 'data': 'View Data' };
         function showPage(page) {
             ['dashboard', 'cpa-local', 'cpa-intl', 'employee-master', 'payroll-mgmt', 'upload', 'payroll-breakdown', 'payroll-alloc', 'cost-alloc', 'data'].forEach(function(p) {
                 document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
@@ -731,6 +761,7 @@
             if (page === 'payroll-breakdown') { loadAllData().then(function() { renderPayrollBreakdown(); }); }
             if (page === 'payroll-alloc') { loadAllData().then(function() { renderPayrollAllocations(); }); }
             if (page === 'cost-alloc') renderCostAllocations();
+            if (page === 'licence-allocation') { loadAllData().then(function() { renderLicenceAllocation(); }); }
             if (page === 'data') showDataTab('payroll');
         }
 
@@ -2646,6 +2677,155 @@
                 input.dispatchEvent(new Event('change'));
             });
         });
+
+        // ==================== LICENCE ALLOCATION ====================
+        async function renderLicenceAllocation() {
+            var body = document.getElementById('licenceAllocBody');
+            var payroll = data.payrollData || [];
+            
+            // Build org/div/role structure with employee counts
+            var structure = {};
+            payroll.forEach(function(emp) {
+                var org = emp.org_unit || 'Unassigned';
+                var div = emp.division || 'Unassigned';
+                var role = emp.role || 'Unassigned';
+                
+                if (!structure[org]) structure[org] = {};
+                if (!structure[org][div]) structure[org][div] = {};
+                if (!structure[org][div][role]) structure[org][div][role] = { count: 0, key: role + '||' + org };
+                structure[org][div][role].count += 1;
+            });
+            
+            // Fetch existing licence allocations
+            var licences = {};
+            try {
+                var res = await fetch(SUPABASE_URL + '/rest/v1/licence_allocations?select=*', {
+                    headers: { apikey: SUPABASE_KEY }
+                });
+                var allocs = await res.json();
+                allocs.forEach(function(a) {
+                    licences[a.role + '||' + a.org_unit] = a.licence_type;
+                });
+            } catch (e) {}
+            
+            var html = '';
+            var licenceOptions = ['Microsoft E3', 'Microsoft F1 (2GB)', 'Microsoft F1 (50GB)'];
+            
+            Object.keys(structure).sort().forEach(function(org) {
+                var orgCount = 0;
+                Object.keys(structure[org]).forEach(function(div) {
+                    Object.keys(structure[org][div]).forEach(function(role) {
+                        orgCount += structure[org][div][role].count;
+                    });
+                });
+                
+                // Org unit row
+                html += '<tr style="background:#f0fdf4;font-weight:600;border-top:2px solid #dbeafe;">' +
+                    '<td style="padding:12px 8px;">' + esc(org) + '</td>' +
+                    '<td class="text-center" style="color:#059669;font-weight:bold;">' + orgCount + '</td>' +
+                    '<td colspan="3"></td>' +
+                    '</tr>';
+                
+                Object.keys(structure[org]).sort().forEach(function(div) {
+                    var divCount = 0;
+                    Object.keys(structure[org][div]).forEach(function(role) {
+                        divCount += structure[org][div][role].count;
+                    });
+                    
+                    // Division row
+                    html += '<tr style="background:#fafafa;font-weight:500;">' +
+                        '<td style="padding-left:40px;color:#6b7280;">' + esc(div) + '</td>' +
+                        '<td class="text-center" style="color:#6b7280;">' + divCount + '</td>' +
+                        '<td colspan="3"></td>' +
+                        '</tr>';
+                    
+                    Object.keys(structure[org][div]).sort().forEach(function(role) {
+                        var roleData = structure[org][div][role];
+                        var roleKey = roleData.key;
+                        var currentLicence = licences[roleKey] || '';
+                        
+                        html += '<tr style="background:#fff;border-bottom:1px solid #e5e7eb;">' +
+                            '<td style="padding-left:80px;color:#d1d5db;font-size:0.875rem;">● ' + esc(role) + '</td>' +
+                            '<td class="text-center" style="color:#d1d5db;">' + roleData.count + '</td>' +
+                            '<td style="padding:8px;">' + esc(role) + '</td>' +
+                            '<td class="text-center" style="padding:8px;">' +
+                            '<select class="select-field text-xs" data-role="' + esc(roleKey) + '" onchange="saveLicenceAllocation(this)">' +
+                            '<option value="">-- Select --</option>';
+                        
+                        licenceOptions.forEach(function(opt) {
+                            html += '<option value="' + esc(opt) + '"' + (currentLicence === opt ? ' selected' : '') + '>' + esc(opt) + '</option>';
+                        });
+                        
+                        html += '</select></td>' +
+                            '<td class="text-center" style="padding:8px;">' +
+                            (currentLicence ? '<button onclick="clearLicenceAllocation(\'' + esc(roleKey).replace(/'/g, "\\'") + '\')" class="btn btn-xs bg-red-100 text-red-700 px-2 py-1 text-xs">Clear</button>' : '') +
+                            '</td>' +
+                            '</tr>';
+                    });
+                });
+            });
+            
+            body.innerHTML = html || '<tr><td colspan="5" class="text-center text-gray-400 py-6">No roles found</td></tr>';
+        }
+        
+        async function saveLicenceAllocation(selectElem) {
+            var roleKey = selectElem.getAttribute('data-role');
+            var licence = selectElem.value;
+            var parts = roleKey.split('||');
+            var role = parts[0];
+            var org = parts[1];
+            
+            if (!licence) {
+                clearLicenceAllocation(roleKey);
+                return;
+            }
+            
+            try {
+                await fetch(SUPABASE_URL + '/rest/v1/licence_allocations', {
+                    method: 'POST',
+                    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: role, org_unit: org, licence_type: licence })
+                }).then(r => {
+                    if (r.status === 409) {
+                        // Duplicate - update instead
+                        return fetch(SUPABASE_URL + '/rest/v1/licence_allocations?role=eq.' + encodeURIComponent(role) + '&org_unit=eq.' + encodeURIComponent(org), {
+                            method: 'PATCH',
+                            headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ licence_type: licence })
+                        });
+                    }
+                    return r;
+                });
+                alert('✅ Licence saved!');
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+        
+        async function clearLicenceAllocation(roleKey) {
+            var parts = roleKey.split('||');
+            var role = parts[0];
+            var org = parts[1];
+            
+            if (!confirm('Clear licence allocation?')) return;
+            
+            try {
+                await fetch(SUPABASE_URL + '/rest/v1/licence_allocations?role=eq.' + encodeURIComponent(role) + '&org_unit=eq.' + encodeURIComponent(org), {
+                    method: 'DELETE',
+                    headers: { apikey: SUPABASE_KEY }
+                });
+                await renderLicenceAllocation();
+                alert('✅ Licence cleared!');
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+        
+        function refreshLicenceAllocation() {
+            loadAllData().then(function() {
+                renderLicenceAllocation();
+            });
+        }
 
         // User display
         function getLoggedInUser() {
