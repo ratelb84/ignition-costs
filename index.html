@@ -2703,10 +2703,14 @@
                     headers: { apikey: SUPABASE_KEY }
                 });
                 var allocs = await res.json();
-                allocs.forEach(function(a) {
-                    licences[a.role + '||' + a.org_unit] = a.licence_type;
-                });
-            } catch (e) {}
+                if (Array.isArray(allocs)) {
+                    allocs.forEach(function(a) {
+                        licences[a.role + '||' + a.org_unit] = a.licence_type;
+                    });
+                }
+            } catch (e) {
+                console.log('Licence fetch error:', e);
+            }
             
             var html = '';
             var licenceOptions = ['Microsoft E3', 'Microsoft F1 (2GB)', 'Microsoft F1 (50GB)'];
@@ -2747,9 +2751,9 @@
                         html += '<tr style="background:#fff;border-bottom:1px solid #e5e7eb;">' +
                             '<td style="padding-left:80px;color:#d1d5db;font-size:0.875rem;">● ' + esc(role) + '</td>' +
                             '<td class="text-center" style="color:#d1d5db;">' + roleData.count + '</td>' +
-                            '<td style="padding:8px;">' + esc(role) + '</td>' +
+                            '<td style="padding:8px;">– ' + esc(role) + '</td>' +
                             '<td class="text-center" style="padding:8px;">' +
-                            '<select class="select-field text-xs" data-role="' + esc(roleKey) + '" onchange="saveLicenceAllocation(this)">' +
+                            '<select class="select-field text-xs" data-role="' + roleKey.replace(/'/g, "\\'") + '" onchange="saveLicenceAllocation(this)">' +
                             '<option value="">-- Select --</option>';
                         
                         licenceOptions.forEach(function(opt) {
@@ -2758,7 +2762,7 @@
                         
                         html += '</select></td>' +
                             '<td class="text-center" style="padding:8px;">' +
-                            (currentLicence ? '<button onclick="clearLicenceAllocation(\'' + esc(roleKey).replace(/'/g, "\\'") + '\')" class="btn btn-xs bg-red-100 text-red-700 px-2 py-1 text-xs">Clear</button>' : '') +
+                            (currentLicence ? '<button onclick="clearLicenceAllocation(\'' + roleKey.replace(/'/g, "\\'") + '\')" class="btn btn-xs bg-red-100 text-red-700 px-2 py-1 text-xs">Clear</button>' : '') +
                             '</td>' +
                             '</tr>';
                     });
