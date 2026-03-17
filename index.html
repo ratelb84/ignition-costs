@@ -2286,8 +2286,9 @@
                                 var roleTotal = roleCosts.localCC + roleCosts.intCC + roleCosts.retail + roleCosts.product + roleCosts.mvnx + roleCosts.gumtree;
                                 
                                 // Role row (clickable)
+                                var empCount = roleData.employees ? roleData.employees.length : 0;
                                 html += '<tr onclick="pbToggle(\'' + roleKey.replace(/'/g, "\\'") + '\')" style="cursor:pointer;background:#f9fafb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'#f9fafb\'">' +
-                                    '<td style="padding-left:80px;color:#9ca3af;font-size:0.875rem;"><span style="margin-right:8px;">' + (roleOpen ? '▼' : '▶') + '</span>' + esc(role) + '</td>' +
+                                    '<td style="padding-left:80px;color:#9ca3af;font-size:0.875rem;"><span style="margin-right:8px;">' + (roleOpen ? '▼' : '▶') + '</span>' + esc(role) + ' <span style="color:#d1d5db;font-size:0.75rem;">(' + empCount + ' emp' + (empCount !== 1 ? 's' : '') + ')</span></td>' +
                                     '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.localCC).toLocaleString('en-ZA') + '</td>' +
                                     '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.intCC).toLocaleString('en-ZA') + '</td>' +
                                     '<td class="text-right" style="color:#9ca3af;font-size:0.875rem;">R ' + Math.round(roleCosts.retail).toLocaleString('en-ZA') + '</td>' +
